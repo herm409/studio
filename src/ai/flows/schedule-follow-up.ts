@@ -67,6 +67,7 @@ const prompt = ai.definePrompt({
     - Alignment with funnel stage milestones
 
   Output a detailed follow-up schedule, including specific dates, times, and suggested content for each follow-up.
+  All suggested follow-up dates and times in the schedule MUST be in the future. Do not suggest past dates or times.
   Also, provide a reasoning for how the follow-up schedule was determined.
   Follow the output schema exactly.
   `,
