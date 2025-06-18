@@ -215,11 +215,15 @@ export default function ProspectDetailPage() {
     if (!prospect) return;
     setIsScheduleLoading(true);
     try {
+      const today = new Date();
+      const currentDateFormatted = format(today, "yyyy-MM-dd");
+
       const result = await scheduleFollowUp({
         prospectData: `${prospect.name}${prospect.email ? `, ${prospect.email}` : ''}`,
         interactionHistory: prospect.interactionHistory.map(i => i.summary).join('; '),
         currentFunnelStage: prospect.currentFunnelStage,
-        userPreferences: "Prefer morning follow-ups, avoid Mondays.", 
+        userPreferences: "Prefer morning follow-ups, avoid Mondays.",
+        currentDate: currentDateFormatted, 
       });
       setAiScheduleSuggestion(result);
     } catch (error: any) {
@@ -492,3 +496,4 @@ export default function ProspectDetailPage() {
     </div>
   );
 }
+

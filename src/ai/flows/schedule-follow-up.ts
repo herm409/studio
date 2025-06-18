@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -26,6 +27,7 @@ const ScheduleFollowUpInputSchema = z.object({
       'The current stage of the prospect in the sales funnel (e.g., prospect, viewed media, spoke with third-party, close).'
     ),
   userPreferences: z.string().describe('The users preferred follow up schedule.'),
+  currentDate: z.string().describe('The current date in YYYY-MM-DD format. This is "today".'),
 });
 export type ScheduleFollowUpInput = z.infer<typeof ScheduleFollowUpInputSchema>;
 
@@ -52,6 +54,7 @@ const prompt = ai.definePrompt({
   input: {schema: ScheduleFollowUpInputSchema},
   output: {schema: ScheduleFollowUpOutputSchema},
   prompt: `You are an AI assistant designed to optimize follow-up schedules for sales prospects.
+  The current date is {{{currentDate}}}. Use this as your reference for "today".
 
   Analyze the provided prospect data, interaction history, current funnel stage, and user preferences to create an intelligent follow-up schedule.
 
@@ -61,13 +64,14 @@ const prompt = ai.definePrompt({
   User Preferences: {{{userPreferences}}}
 
   Consider factors such as:
-    - Time elapsed since last interaction
+    - Time elapsed since last interaction (relative to {{{currentDate}}})
     - Prospect engagement level
     - Best days/times for communication
     - Alignment with funnel stage milestones
 
   Output a detailed follow-up schedule, including specific dates, times, and suggested content for each follow-up.
-  All suggested follow-up dates and times in the schedule MUST be in the future. Do not suggest past dates or times.
+  All suggested follow-up dates and times in the schedule MUST be in the future, relative to {{{currentDate}}}. Do not suggest past dates or times.
+  For example, if today ({{{currentDate}}}) is 2024-07-15 (Monday), "tomorrow" would be 2024-07-16 (Tuesday). Ensure days of the week in your suggestions align with the actual dates.
   Also, provide a reasoning for how the follow-up schedule was determined.
   Follow the output schema exactly.
   `,
@@ -84,3 +88,4 @@ const scheduleFollowUpFlow = ai.defineFlow(
     return output!;
   }
 );
+
