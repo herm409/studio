@@ -4,10 +4,10 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [
@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
   experimental: {
     allowedDevOrigins: [
         "https://6000-firebase-studio-1750206045453.cluster-pgviq6mvsncnqxx6kr7pbz65v6.cloudworkstations.dev",
-        "http://localhost:9002" // Added internal origin
+        "http://localhost:9002"
     ],
   },
 };
