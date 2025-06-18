@@ -124,6 +124,26 @@ export async function getProspects(): Promise<Prospect[]> {
   for (const prospectDoc of querySnapshot.docs) {
     let data = prospectDoc.data() as Omit<Prospect, 'id' | 'interactionHistory'> & { createdAt: Timestamp, updatedAt: Timestamp, lastContactedDate?: Timestamp | string, nextFollowUpDate?: Timestamp | string };
 
+    let lastContactedDateValue: string | undefined = undefined;
+    if (data.lastContactedDate) {
+        if (typeof data.lastContactedDate === 'string') {
+            lastContactedDateValue = data.lastContactedDate;
+        } else if (data.lastContactedDate instanceof Timestamp) {
+            lastContactedDateValue = data.lastContactedDate.toDate().toISOString();
+        }
+    }
+
+    let nextFollowUpDateValue: string | undefined = undefined;
+    if (data.nextFollowUpDate) {
+        if (typeof data.nextFollowUpDate === 'string') {
+            nextFollowUpDateValue = data.nextFollowUpDate;
+        } else if (data.nextFollowUpDate instanceof Timestamp) {
+            nextFollowUpDateValue = data.nextFollowUpDate.toDate().toISOString();
+        }
+    } else {
+        nextFollowUpDateValue = await calculateNextFollowUpDate(prospectDoc.id, userId);
+    }
+
     const prospect: Prospect = {
       id: prospectDoc.id,
       userId: data.userId,
@@ -135,14 +155,8 @@ export async function getProspects(): Promise<Prospect[]> {
       followUpStageNumber: data.followUpStageNumber,
       colorCode: data.colorCode,
       colorCodeReasoning: data.colorCodeReasoning,
-      lastContactedDate: data.lastContactedDate ? 
-        (typeof data.lastContactedDate === 'string' ? data.lastContactedDate : 
-          (data.lastContactedDate instanceof Timestamp ? data.lastContactedDate.toDate().toISOString() : undefined)) 
-        : undefined,
-      nextFollowUpDate: data.nextFollowUpDate ? 
-        (typeof data.nextFollowUpDate === 'string' ? data.nextFollowUpDate : 
-          (data.nextFollowUpDate instanceof Timestamp ? data.nextFollowUpDate.toDate().toISOString() : undefined)) 
-        : await calculateNextFollowUpDate(prospectDoc.id, userId),
+      lastContactedDate: lastContactedDateValue,
+      nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: [],
       createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
       updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
@@ -177,6 +191,26 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
         date: (docSnap.data().date as Timestamp).toDate().toISOString(),
     })) as Interaction[];
 
+    let lastContactedDateValue: string | undefined = undefined;
+    if (data.lastContactedDate) {
+        if (typeof data.lastContactedDate === 'string') {
+            lastContactedDateValue = data.lastContactedDate;
+        } else if (data.lastContactedDate instanceof Timestamp) {
+            lastContactedDateValue = data.lastContactedDate.toDate().toISOString();
+        }
+    }
+
+    let nextFollowUpDateValue: string | undefined = undefined;
+    if (data.nextFollowUpDate) {
+        if (typeof data.nextFollowUpDate === 'string') {
+            nextFollowUpDateValue = data.nextFollowUpDate;
+        } else if (data.nextFollowUpDate instanceof Timestamp) {
+            nextFollowUpDateValue = data.nextFollowUpDate.toDate().toISOString();
+        }
+    } else {
+        nextFollowUpDateValue = await calculateNextFollowUpDate(id, userId);
+    }
+
     const prospect: Prospect = {
       id: prospectDocSnap.id,
       userId: data.userId,
@@ -188,14 +222,8 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
       followUpStageNumber: data.followUpStageNumber,
       colorCode: data.colorCode,
       colorCodeReasoning: data.colorCodeReasoning,
-      lastContactedDate: data.lastContactedDate ? 
-        (typeof data.lastContactedDate === 'string' ? data.lastContactedDate : 
-          (data.lastContactedDate instanceof Timestamp ? data.lastContactedDate.toDate().toISOString() : undefined)) 
-        : undefined,
-      nextFollowUpDate: data.nextFollowUpDate ? 
-        (typeof data.nextFollowUpDate === 'string' ? data.nextFollowUpDate : 
-          (data.nextFollowUpDate instanceof Timestamp ? data.nextFollowUpDate.toDate().toISOString() : undefined)) 
-        : await calculateNextFollowUpDate(id, userId),
+      lastContactedDate: lastContactedDateValue,
+      nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: interactionHistory,
       createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
       updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
@@ -310,7 +338,16 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   await updateDoc(prospectDocRef, updatesForFirestore);
   const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
   
-  const currentStoredNextFollowUp = prospectSnap.data().nextFollowUpDate;
+  const currentStoredNextFollowUpTimestamp = prospectSnap.data().nextFollowUpDate;
+  let currentStoredNextFollowUp: string | undefined = undefined;
+    if (currentStoredNextFollowUpTimestamp) {
+        if (typeof currentStoredNextFollowUpTimestamp === 'string') {
+            currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp;
+        } else if (currentStoredNextFollowUpTimestamp instanceof Timestamp) {
+            currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp.toDate().toISOString().split('T')[0]; // Get YYYY-MM-DD
+        }
+    }
+
   if (updatedNextFollowUpDate !== currentStoredNextFollowUp) {
       await updateDoc(prospectDocRef, { nextFollowUpDate: updatedNextFollowUpDate || deleteField() });
   }
@@ -513,7 +550,7 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   const newInteractionData = {
     ...interactionData, 
     userId,
-    prospectId: interactionData.prospectId || prospectId,
+    prospectId: interactionData.prospectId || prospectId, // Ensure prospectId is set
     date: interactionTimestamp,
   };
 
