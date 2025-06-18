@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Award, CalendarCheck, CheckCircle, Repeat, Star, Target, Trophy, Zap } from "lucide-react";
+import { Award, CalendarCheck, CheckCircle, Repeat, Star, Target, Trophy, Zap, Users } from "lucide-react";
 import type { GamificationStats } from '@/types';
 import { getGamificationStats } from '@/lib/data'; // Assuming this can be called client-side
 
