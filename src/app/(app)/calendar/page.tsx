@@ -26,7 +26,7 @@ const getMethodIcon = (method?: FollowUp['method']) => {
 
 export default function CalendarPage() {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(); // Initialize as undefined
   const [allFollowUps, setAllFollowUps] = useState<FollowUp[]>([]);
   const [prospectsMap, setProspectsMap] = useState<Map<string, Prospect>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +60,11 @@ export default function CalendarPage() {
     loadData();
   }, [user]);
 
+  useEffect(() => {
+    // This effect runs only on the client, after initial hydration
+    setSelectedDate(new Date());
+  }, []); // Empty dependency array ensures this runs once on mount
+
   const followUpDays = useMemo(() => {
     return allFollowUps.map(fu => parseISO(fu.date));
   }, [allFollowUps]);
@@ -86,7 +91,7 @@ export default function CalendarPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !selectedDate) { // Adjusted loading condition to wait for selectedDate as well
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
