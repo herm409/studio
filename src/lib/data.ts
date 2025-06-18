@@ -20,12 +20,11 @@ let prospects: Prospect[] = [
     updatedAt: new Date().toISOString(),
     avatarUrl: 'https://placehold.co/100x100.png',
     lastContactedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    // colorCode and nextFollowUpDate will be set by ensureProspectDetails
   },
   {
     id: '2',
     name: 'Bob The Builder',
-    email: 'bob@example.com',
+    // email is now optional
     initialData: 'Looking for project management tools. Referral from John Doe.',
     currentFunnelStage: 'Prospect',
     followUpStageNumber: 1,
@@ -34,7 +33,6 @@ let prospects: Prospect[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     avatarUrl: 'https://placehold.co/100x100.png',
-    // colorCode and nextFollowUpDate will be set by ensureProspectDetails
   },
   {
     id: '3',
@@ -54,7 +52,6 @@ let prospects: Prospect[] = [
     updatedAt: new Date().toISOString(),
     avatarUrl: 'https://placehold.co/100x100.png',
     lastContactedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    // colorCode and nextFollowUpDate will be set by ensureProspectDetails
   },
 ];
 
@@ -102,7 +99,6 @@ let followUps: FollowUp[] = [
 ];
 
 async function ensureProspectDetails(prospect: Prospect): Promise<void> {
-  // Calculate nextFollowUpDate
   const prospectFollowUps = followUps.filter(fu => fu.prospectId === prospect.id && fu.status === 'Pending')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   if (prospectFollowUps.length > 0) {
@@ -111,7 +107,6 @@ async function ensureProspectDetails(prospect: Prospect): Promise<void> {
     prospect.nextFollowUpDate = undefined;
   }
 
-  // Ensure color code is set, fetching from AI if necessary
   if (!prospect.colorCode || prospect.colorCode === '#CCCCCC' || !prospect.colorCodeReasoning) {
     try {
       const colorResult = await genAIColorCodeProspect({ stage: prospect.followUpStageNumber, prospectName: prospect.name });
@@ -119,7 +114,7 @@ async function ensureProspectDetails(prospect: Prospect): Promise<void> {
       prospect.colorCodeReasoning = colorResult.reasoning;
     } catch (error) {
       console.error(`Error generating color code for prospect ${prospect.name}:`, error);
-      prospect.colorCode = '#DDDDDD'; // Fallback color on error
+      prospect.colorCode = '#DDDDDD'; 
       prospect.colorCodeReasoning = 'Failed to generate color code.';
     }
   }
@@ -139,7 +134,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
   return undefined;
 }
 
-export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'scheduledFollowUps' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate'>): Promise<Prospect> {
+export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'scheduledFollowUps' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate' | 'lastContactedDate'>): Promise<Prospect> {
   const newId = String(prospects.length + 1 + Date.now());
   const now = new Date().toISOString();
   
@@ -151,12 +146,15 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     colorCodeReasoning = colorResult.reasoning;
   } catch (error) {
     console.error("Error generating color code for new prospect:", prospectData.name, error);
-    colorCode = '#DDDDDD'; // Fallback color on error
+    colorCode = '#DDDDDD'; 
     colorCodeReasoning = 'Failed to generate color code.';
   }
 
   const newProspect: Prospect = {
     ...prospectData,
+    email: prospectData.email || undefined,
+    phone: prospectData.phone || undefined,
+    avatarUrl: prospectData.avatarUrl || `https://placehold.co/100x100.png?text=${prospectData.name.charAt(0)}`,
     id: newId,
     interactionHistory: [],
     scheduledFollowUps: [],
@@ -164,8 +162,6 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     updatedAt: now,
     colorCode,
     colorCodeReasoning,
-    avatarUrl: prospectData.avatarUrl || `https://placehold.co/100x100.png?text=${prospectData.name.charAt(0)}`
-    // nextFollowUpDate will be undefined initially, set by ensureProspectDetails when fetched or by addFollowUp
   };
   prospects.push(newProspect);
   updateGamificationOnAddProspect();
@@ -177,23 +173,27 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   if (prospectIndex === -1) return undefined;
 
   const originalProspect = prospects[prospectIndex];
-  const updatedProspect = { ...originalProspect, ...updates, updatedAt: new Date().toISOString() };
+  const updatedProspectData = { ...originalProspect, ...updates, updatedAt: new Date().toISOString() };
+
+  // Ensure optional fields are correctly handled (empty string from form becomes undefined)
+  if ('email' in updates) updatedProspectData.email = updates.email || undefined;
+  if ('phone' in updates) updatedProspectData.phone = updates.phone || undefined;
+  if ('avatarUrl' in updates) updatedProspectData.avatarUrl = updates.avatarUrl || undefined;
+
 
   if (updates.followUpStageNumber && updates.followUpStageNumber !== originalProspect.followUpStageNumber) {
      try {
-      const colorResult = await genAIColorCodeProspect({ stage: updatedProspect.followUpStageNumber, prospectName: updatedProspect.name });
-      updatedProspect.colorCode = colorResult.colorCode;
-      updatedProspect.colorCodeReasoning = colorResult.reasoning;
+      const colorResult = await genAIColorCodeProspect({ stage: updatedProspectData.followUpStageNumber, prospectName: updatedProspectData.name });
+      updatedProspectData.colorCode = colorResult.colorCode;
+      updatedProspectData.colorCodeReasoning = colorResult.reasoning;
     } catch (error) {
-      console.error("Error updating color code for prospect:", updatedProspect.name, error);
-      // Keep existing or set a default if it was never set
-      updatedProspect.colorCode = originalProspect.colorCode || '#DDDDDD';
-      updatedProspect.colorCodeReasoning = originalProspect.colorCodeReasoning || 'Failed to update color code.';
+      console.error("Error updating color code for prospect:", updatedProspectData.name, error);
+      updatedProspectData.colorCode = originalProspect.colorCode || '#DDDDDD';
+      updatedProspectData.colorCodeReasoning = originalProspect.colorCodeReasoning || 'Failed to update color code.';
     }
   }
   
-  prospects[prospectIndex] = updatedProspect;
-  // Re-ensure all details, including nextFollowUpDate, after update
+  prospects[prospectIndex] = updatedProspectData;
   await ensureProspectDetails(prospects[prospectIndex]);
   return JSON.parse(JSON.stringify(prospects[prospectIndex]));
 }
@@ -224,7 +224,7 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
   
   const prospect = prospects.find(p => p.id === followUpData.prospectId);
   if (prospect) {
-    await ensureProspectDetails(prospect); // This will update nextFollowUpDate
+    await ensureProspectDetails(prospect); 
   }
   return JSON.parse(JSON.stringify(newFollowUp));
 }
@@ -242,7 +242,7 @@ export async function updateFollowUp(id: string, updates: Partial<Omit<FollowUp,
   
   const prospect = prospects.find(p => p.id === originalFollowUp.prospectId);
    if (prospect) {
-    await ensureProspectDetails(prospect); // This will update nextFollowUpDate
+    await ensureProspectDetails(prospect); 
   }
 
   return JSON.parse(JSON.stringify(followUps[followUpIndex]));
@@ -267,7 +267,6 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
 }
 
 
-// Gamification Logic (Illustrative - uses localStorage, which is client-side)
 const GAMIFICATION_KEY = 'followUpFlowGamification';
 
 export function getGamificationStats(): GamificationStats {
@@ -282,7 +281,6 @@ export function getGamificationStats(): GamificationStats {
   const todayStr = new Date().toISOString().split('T')[0];
   if (parsedStats.lastProspectAddedDate !== todayStr) {
     parsedStats.dailyProspectsAdded = 0;
-    // lastProspectAddedDate will be updated when a prospect is actually added.
   }
   return parsedStats;
 }
@@ -297,7 +295,6 @@ function updateGamificationOnAddProspect() {
   const stats = getGamificationStats();
   const todayStr = new Date().toISOString().split('T')[0];
   
-  // If it's a new day, reset dailyProspectsAdded before incrementing
   if (stats.lastProspectAddedDate !== todayStr) {
     stats.dailyProspectsAdded = 0; 
   }
@@ -315,11 +312,9 @@ function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, update
   if (updatedFollowUp.status === 'Completed') {
     if (completedDate.toISOString().split('T')[0] <= scheduledDate.toISOString().split('T')[0]) {
       stats.totalOnTimeFollowUps += 1;
-      // Logic for streak: needs to check if the last follow-up was on the previous day and on time.
-      // This is a simplified version. For a robust streak, more state about last follow-up date is needed.
       stats.followUpStreak += 1; 
-    } else { // Completed late
-      stats.totalMissedFollowUps += 1; // Or a new category "lateFollowUps"
+    } else { 
+      stats.totalMissedFollowUps += 1; 
       stats.followUpStreak = 0;
     }
   } else if (updatedFollowUp.status === 'Missed') {

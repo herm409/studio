@@ -44,7 +44,7 @@ export default async function ProspectsPage() {
                     </Avatar>
                     <div>
                       <CardTitle className="text-xl font-headline">{prospect.name}</CardTitle>
-                      <CardDescription className="text-sm">{prospect.email}</CardDescription>
+                      {prospect.email && <CardDescription className="text-sm flex items-center"><Mail className="w-3 h-3 mr-1"/>{prospect.email}</CardDescription>}
                       {prospect.phone && <CardDescription className="text-sm flex items-center"><Phone className="w-3 h-3 mr-1"/>{prospect.phone}</CardDescription>}
                     </div>
                   </div>

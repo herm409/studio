@@ -28,9 +28,9 @@ export function ProspectDetailCard({ prospect }: ProspectDetailCardProps) {
                 {prospect.name}
                 <ColorCodedIndicator colorCode={prospect.colorCode} size="lg" className="ml-3" />
               </CardTitle>
-              <div className="flex space-x-4 text-muted-foreground mt-1">
-                <span className="flex items-center text-sm"><Mail className="w-4 h-4 mr-1.5" /> {prospect.email}</span>
-                {prospect.phone && <span className="flex items-center text-sm"><Phone className="w-4 h-4 mr-1.5" /> {prospect.phone}</span>}
+              <div className="flex flex-col sm:flex-row sm:space-x-4 text-muted-foreground mt-1">
+                {prospect.email && <span className="flex items-center text-sm"><Mail className="w-4 h-4 mr-1.5" /> {prospect.email}</span>}
+                {prospect.phone && <span className="flex items-center text-sm mt-1 sm:mt-0"><Phone className="w-4 h-4 mr-1.5" /> {prospect.phone}</span>}
               </div>
             </div>
           </div>

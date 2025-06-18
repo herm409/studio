@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PlusCircle, Loader2, Bot, MessageCircle, Users2, Video, ExternalLink, Phone, Presentation } from "lucide-react";
+import { CalendarIcon, PlusCircle, Loader2, Bot, MessageCircle, Users2, Video, ExternalLink, Phone, Presentation, MessageSquareText } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { ProspectDetailCard } from '@/components/prospects/ProspectDetailCard';
@@ -109,7 +109,7 @@ export default function ProspectDetailPage() {
     try {
       await serverAddInteraction(prospect.id, { ...data, date: new Date().toISOString() });
       toast({ title: "Success", description: "Interaction logged." });
-      fetchProspectData(); // Refresh data
+      fetchProspectData(); 
       setIsInteractionModalOpen(false);
       interactionForm.reset();
     } catch (error) {
@@ -143,7 +143,7 @@ export default function ProspectDetailPage() {
       setIsFollowUpModalOpen(false);
       followUpForm.reset({ method: 'Email', time: '10:00', notes: '' });
       setEditingFollowUp(null);
-      setAiToneSuggestion(null); // Clear AI suggestion after use
+      setAiToneSuggestion(null); 
     } catch (error) {
       toast({ title: "Error", description: `Failed to ${editingFollowUp ? 'update' : 'schedule'} follow-up.`, variant: "destructive" });
     }
@@ -157,7 +157,6 @@ export default function ProspectDetailPage() {
       time: followUp.time,
       notes: followUp.notes,
     });
-    // Optionally pre-fill AI suggestions if they existed on the followUp
     setAiToneSuggestion({ 
       tone: followUp.aiSuggestedTone || '', 
       content: followUp.aiSuggestedContent || '', 
@@ -188,7 +187,7 @@ export default function ProspectDetailPage() {
         prospectObjections: prospectObjections,
       });
       setAiToneSuggestion(result);
-      followUpForm.setValue('notes', result.content, { shouldValidate: true }); // Pre-fill notes
+      followUpForm.setValue('notes', result.content, { shouldValidate: true }); 
     } catch (error) {
       toast({ title: "AI Error", description: "Failed to get tone suggestion.", variant: "destructive" });
     } finally {
@@ -201,10 +200,10 @@ export default function ProspectDetailPage() {
     setIsScheduleLoading(true);
     try {
       const result = await scheduleFollowUp({
-        prospectData: `${prospect.name}, ${prospect.email}`,
+        prospectData: `${prospect.name}${prospect.email ? `, ${prospect.email}` : ''}`,
         interactionHistory: prospect.interactionHistory.map(i => i.summary).join('; '),
         currentFunnelStage: prospect.currentFunnelStage,
-        userPreferences: "Prefer morning follow-ups, avoid Mondays.", // Example preference
+        userPreferences: "Prefer morning follow-ups, avoid Mondays.", 
       });
       setAiScheduleSuggestion(result);
     } catch (error) {
@@ -248,7 +247,6 @@ export default function ProspectDetailPage() {
     <div className="space-y-8">
       <ProspectDetailCard prospect={prospect} />
 
-      {/* AI Suggestions Section */}
       <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6">
         <AiSuggestionCard
           title="AI Message Helper"
@@ -318,7 +316,6 @@ export default function ProspectDetailPage() {
         />
       </div>
 
-      {/* Interactions Section */}
       <Card className="shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -374,7 +371,6 @@ export default function ProspectDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Follow-Ups Section */}
       <Card className="shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -465,5 +461,3 @@ export default function ProspectDetailPage() {
     </div>
   );
 }
-
-    

@@ -27,12 +27,12 @@ import React from "react";
 
 const prospectFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(50, "Name must be at most 50 characters."),
-  email: z.string().email("Invalid email address."),
+  email: z.string().email("Invalid email address.").optional().or(z.literal('')),
   phone: z.string().optional().refine(val => !val || /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/.test(val), {
     message: "Invalid phone number format.",
   }),
   initialData: z.string().min(5, "Initial data must be at least 5 characters.").max(500, "Initial data must be at most 500 characters."),
-  currentFunnelStage: z.enum(FunnelStages as [FunnelStageType, ...FunnelStageType[]], { // Type assertion for Zod enum
+  currentFunnelStage: z.enum(FunnelStages as [FunnelStageType, ...FunnelStageType[]], { 
     required_error: "Funnel stage is required.",
   }),
   followUpStageNumber: z.coerce.number().min(1).max(12, "Follow-up stage must be between 1 and 12."),
@@ -64,6 +64,9 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
     : {
         currentFunnelStage: "Prospect",
         followUpStageNumber: 1,
+        email: "",
+        phone: "",
+        avatarUrl: "",
       };
 
   const form = useForm<ProspectFormValues>({
@@ -112,7 +115,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel>Email Address (Optional)</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="e.g. jane.doe@example.com" {...field} />
                     </FormControl>
