@@ -10,7 +10,7 @@ import {
   addFollowUp as serverAddFollowUp, 
   updateFollowUp as serverUpdateFollowUp, 
   updateProspect as serverUpdateProspect,
-  deleteFollowUp as serverDeleteFollowUp // Import deleteFollowUp
+  deleteFollowUp as serverDeleteFollowUp 
 } from '@/lib/data';
 import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea';
@@ -201,11 +201,15 @@ export default function ProspectDetailPage() {
     if (!prospect) return;
     setIsToneLoading(true);
     try {
+      // Calculate the number of completed follow-ups based on the followUps state
       const completedFollowUpsCount = followUps.filter(f => f.status === 'Completed').length;
+      // The next follow-up number will be completed count + 1
+      const nextFollowUpNumber = completedFollowUpsCount + 1;
+
       const result = await suggestFollowUpMessage({
         prospectData: prospect.initialData,
         previousInteractions: prospect.interactionHistory.map(i => `${format(parseISO(i.date), 'PPp')}: ${i.summary} (${i.outcome || 'no outcome'})`).join('\n'),
-        followUpNumber: completedFollowUpsCount + 1,
+        followUpNumber: nextFollowUpNumber, // Use the calculated next follow-up number
         funnelStage: prospect.currentFunnelStage,
         prospectObjections: prospectObjections,
       });
@@ -362,7 +366,7 @@ export default function ProspectDetailPage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-xs text-muted-foreground italic break-words"><strong>Reasoning:</strong> {aiScheduleSuggestion.reasoning}</p>
+              <div className="mt-2 text-xs text-muted-foreground italic break-words"><strong>Reasoning:</strong> {aiScheduleSuggestion.reasoning}</div>
               {aiScheduleSuggestion.followUpSchedule.length > 0 && (
                 <Button 
                   onClick={handleApplySchedule} 
@@ -394,7 +398,7 @@ export default function ProspectDetailPage() {
                     {tool.toolType === '3-way call' && <Phone className="w-4 h-4 mr-1.5 text-green-500 shrink-0"/>}
                     {tool.toolName} <Badge variant="secondary" className="ml-2 shrink-0">{tool.toolType}</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground break-words">{tool.reasoning}</p>
+                  <div className="text-xs text-muted-foreground break-words">{tool.reasoning}</div>
                   {tool.details && <div className="text-xs text-accent flex items-center break-words"><ExternalLink className="w-3 h-3 mr-1 shrink-0"/> {tool.details}</div>}
                 </li>
               ))}

@@ -20,7 +20,7 @@ import { format, parseISO, isPast, isValid, isToday } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-type SortOption = "name-asc" | "name-desc" | "nextFollowUp-asc" | "nextFollowUp-desc" | "stage-asc" | "stage-desc" | "lastContacted-asc" | "lastContacted-desc";
+type SortOption = "name-asc" | "name-desc" | "nextFollowUp-asc" | "nextFollowUp-desc" | "followUpCount-asc" | "followUpCount-desc" | "lastContacted-asc" | "lastContacted-desc";
 
 export default function ProspectsPage() {
   const { user } = useAuth();
@@ -29,7 +29,7 @@ export default function ProspectsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("name-asc");
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
-  const [filterStage, setFilterStage] = useState<string>("all"); 
+  const [filterFollowUpCount, setFilterFollowUpCount] = useState<string>("all"); 
 
   useEffect(() => {
     async function loadProspects() {
@@ -72,10 +72,10 @@ export default function ProspectsPage() {
       });
     }
     
-    // Filter: Stage Number
-    if (filterStage && filterStage !== "all") { 
-        const stageNum = parseInt(filterStage, 10);
-        prospects = prospects.filter(p => p.followUpStageNumber === stageNum);
+    // Filter: Follow-Up Count
+    if (filterFollowUpCount && filterFollowUpCount !== "all") { 
+        const countNum = parseInt(filterFollowUpCount, 10);
+        prospects = prospects.filter(p => p.followUpStageNumber === countNum);
     }
 
     // Sort
@@ -95,8 +95,8 @@ export default function ProspectsPage() {
           if (dateA === -Infinity && dateB === -Infinity) return 0;
           return dateB - dateA;
         }
-        case "stage-asc": return a.followUpStageNumber - b.followUpStageNumber;
-        case "stage-desc": return b.followUpStageNumber - a.followUpStageNumber;
+        case "followUpCount-asc": return a.followUpStageNumber - b.followUpStageNumber;
+        case "followUpCount-desc": return b.followUpStageNumber - a.followUpStageNumber;
         case "lastContacted-asc": {
           const dateA = a.lastContactedDate ? parseISO(a.lastContactedDate).getTime() : Infinity;
           const dateB = b.lastContactedDate ? parseISO(b.lastContactedDate).getTime() : Infinity;
@@ -114,7 +114,7 @@ export default function ProspectsPage() {
     });
 
     return prospects;
-  }, [allProspects, searchTerm, sortOption, showOverdueOnly, filterStage]);
+  }, [allProspects, searchTerm, sortOption, showOverdueOnly, filterFollowUpCount]);
 
   if (isLoading) {
     return (
@@ -175,8 +175,8 @@ export default function ProspectsPage() {
                 <SelectItem value="name-desc">Name (Z-A)</SelectItem>
                 <SelectItem value="nextFollowUp-asc">Next Follow-Up (Soonest)</SelectItem>
                 <SelectItem value="nextFollowUp-desc">Next Follow-Up (Latest)</SelectItem>
-                <SelectItem value="stage-asc">Follow-Up Stage (Low-High)</SelectItem>
-                <SelectItem value="stage-desc">Follow-Up Stage (High-Low)</SelectItem>
+                <SelectItem value="followUpCount-asc">Follow-Ups Done (Low-High)</SelectItem>
+                <SelectItem value="followUpCount-desc">Follow-Ups Done (High-Low)</SelectItem>
                 <SelectItem value="lastContacted-asc">Last Contacted (Oldest)</SelectItem>
                 <SelectItem value="lastContacted-desc">Last Contacted (Newest)</SelectItem>
               </SelectContent>
@@ -189,15 +189,15 @@ export default function ProspectsPage() {
                 <Checkbox id="overdue-filter" checked={showOverdueOnly} onCheckedChange={(checked) => setShowOverdueOnly(Boolean(checked))} />
                 <Label htmlFor="overdue-filter" className="text-sm font-normal">Overdue</Label>
               </div>
-              <div className="flex-1 min-w-[120px]">
-                 <Select value={filterStage} onValueChange={setFilterStage}>
-                    <SelectTrigger id="stage-filter" className="h-9 text-xs">
-                        <SelectValue placeholder="Stage (1-12)" />
+              <div className="flex-1 min-w-[150px]"> {/* Increased min-width for longer label */}
+                 <Select value={filterFollowUpCount} onValueChange={setFilterFollowUpCount}>
+                    <SelectTrigger id="followup-count-filter" className="h-9 text-xs">
+                        <SelectValue placeholder="Follow-Ups Done (1-12)" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Stages</SelectItem>
-                        {Array.from({length: 12}, (_, i) => i + 1).map(stageNum => (
-                            <SelectItem key={stageNum} value={String(stageNum)}>Stage {stageNum}</SelectItem>
+                        <SelectItem value="all">All Follow-Up Counts</SelectItem>
+                        {Array.from({length: 12}, (_, i) => i + 1).map(countNum => (
+                            <SelectItem key={countNum} value={String(countNum)}> {countNum} Follow-Up{countNum === 1 ? "" : "s"} Done</SelectItem>
                         ))}
                     </SelectContent>
                  </Select>
@@ -279,7 +279,7 @@ export default function ProspectsPage() {
                       ) : (
                          <p className="flex items-center text-muted-foreground/70"><CalendarDays className="w-3 h-3 mr-1.5"/>No upcoming follow-up</p>
                       )}
-                      <div className="text-xs">Stage Number: <Badge variant="secondary" className="px-1.5 py-0 text-xs">{prospect.followUpStageNumber}</Badge></div>
+                      <div className="text-xs">Follow-Ups Done: <Badge variant="secondary" className="px-1.5 py-0 text-xs">{prospect.followUpStageNumber}</Badge></div>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2" title={prospect.initialData}>
                     {prospect.initialData}

@@ -40,7 +40,7 @@ const prospectFormSchema = z.object({
   currentFunnelStage: z.enum(FunnelStages as [FunnelStageType, ...FunnelStageType[]], {
     required_error: "Funnel stage is required.",
   }),
-  followUpStageNumber: z.coerce.number().min(1).max(12, "Follow-up stage must be between 1 and 12."),
+  followUpStageNumber: z.coerce.number().min(1, "Must be at least 1.").max(12, "Must be at most 12."),
   avatarUrl: z.string().url("Invalid URL format for avatar.").optional().or(z.literal('')),
   // Initial Follow-up Fields
   firstFollowUpDate: z.date({ required_error: "Initial follow-up date is required." }),
@@ -62,7 +62,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
   const { toast } = useToast();
 
   const defaultValues: ProspectFormValues = prospect
-    ? { // Editing existing prospect - initial follow-up fields are not pre-filled from prospect data
+    ? { 
         name: prospect.name,
         email: prospect.email || "",
         phone: prospect.phone || "",
@@ -70,18 +70,12 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
         currentFunnelStage: prospect.currentFunnelStage,
         followUpStageNumber: prospect.followUpStageNumber,
         avatarUrl: prospect.avatarUrl || "",
-        // For editing, we don't pre-fill first follow-up fields from prospect's history
-        // These fields are primarily for *new* prospect creation.
-        // If needed for edit, logic would be more complex.
-        // For now, let's assume this form is mainly for 'add' for these specific fields.
-        // Or if present on edit, they would represent a *new* first follow-up to be added.
-        // To keep it simple for 'add' page, we will set defaults here.
-        firstFollowUpDate: new Date(), // Default to today, user must change
+        firstFollowUpDate: new Date(), 
         firstFollowUpTime: "10:00",
         firstFollowUpMethod: "Call",
         firstFollowUpNotes: "Initial follow-up.",
       }
-    : { // Adding new prospect
+    : { 
         name: "",
         email: "",
         phone: "",
@@ -89,7 +83,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
         currentFunnelStage: "Prospect",
         followUpStageNumber: 1,
         avatarUrl: "",
-        firstFollowUpDate: new Date(), // Default to today, user must change
+        firstFollowUpDate: new Date(), 
         firstFollowUpTime: "10:00",
         firstFollowUpMethod: "Call",
         firstFollowUpNotes: "Initial follow-up.",
@@ -171,13 +165,13 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                   <FormLabel>Initial Data & Notes</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="e.g. Met at conference, interested in product X, budget around $5k."
+                      placeholder="e.g. Met at conference, interested in product X, budget around $5k. Include details of any past follow-ups here."
                       className="resize-y min-h-[100px]"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    Background information, interests, how you met them, etc.
+                    Background information, interests, how you met them. If prospect has prior interactions, detail them here.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -211,12 +205,12 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 name="followUpStageNumber"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Follow-Up Stage (1-12)</FormLabel>
+                    <FormLabel>Number of Previous Follow-Ups (1-12)</FormLabel>
                     <FormControl>
-                        <Input type="number" min="1" max="12" placeholder="e.g. 1 for new, 12 for very mature" {...field} />
+                        <Input type="number" min="1" max="12" placeholder="e.g. 1 for new, 12 for many" {...field} />
                     </FormControl>
                     <FormDescription>
-                        Used for color-coding (1=fresh, 12=ripe).
+                        Count of follow-ups already done. For color-coding (1=fresh, 12=ripe) and AI context.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
@@ -240,7 +234,6 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
               )}
             />
 
-            {/* Initial Follow-Up Section - only for new prospects */}
             {!prospect && (
               <>
                 <Separator className="my-8" />
@@ -300,7 +293,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
               </>
             )}
             
-            <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3 pt-4 px-0"> {/* Adjusted padding */}
+            <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3 pt-4 px-0"> 
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting} className="w-full sm:w-auto">
                 Cancel
               </Button>
@@ -315,3 +308,4 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
     </Card>
   );
 }
+
