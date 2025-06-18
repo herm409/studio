@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PlusCircle, Loader2, Bot, MessageCircle, Users2, Video, ExternalLink } from "lucide-react";
+import { CalendarIcon, PlusCircle, Loader2, Bot, MessageCircle, Users2, Video, ExternalLink, Phone, Presentation } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { ProspectDetailCard } from '@/components/prospects/ProspectDetailCard';
@@ -287,9 +287,9 @@ export default function ProspectDetailPage() {
               {aiToolSuggestions.toolSuggestions.map((tool, idx) => (
                 <li key={idx} className="p-2 border rounded-md bg-background">
                   <p className="font-semibold flex items-center">
-                    {tool.toolType === 'informational video' && <Video className="w-4 h-4 mr-1.5 text-blue-500"/>}
-                    {tool.toolType === 'in-person presentation' && <Users2 className="w-4 h-4 mr-1.5 text-purple-500"/>}
-                    {tool.toolType === '3-way call with expert' && <Bot className="w-4 h-4 mr-1.5 text-green-500"/>}
+                    {tool.toolType === 'Prospect by LegalShield' && <Video className="w-4 h-4 mr-1.5 text-blue-500"/>}
+                    {tool.toolType === 'Live Presentation' && <Presentation className="w-4 h-4 mr-1.5 text-purple-500"/>}
+                    {tool.toolType === '3-way call' && <Phone className="w-4 h-4 mr-1.5 text-green-500"/>}
                     {tool.toolName} <Badge variant="secondary" className="ml-2">{tool.toolType}</Badge>
                   </p>
                   <p className="text-xs text-muted-foreground">{tool.reasoning}</p>
