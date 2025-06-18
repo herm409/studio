@@ -20,11 +20,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"; // Added CardFooter
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon } from "lucide-react"; // Added CalendarIcon
 import React from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { Separator } from "@/components/ui/separator"; // Added Separator
 
 const prospectFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(50, "Name must be at most 50 characters."),
@@ -38,12 +42,17 @@ const prospectFormSchema = z.object({
   }),
   followUpStageNumber: z.coerce.number().min(1).max(12, "Follow-up stage must be between 1 and 12."),
   avatarUrl: z.string().url("Invalid URL format for avatar.").optional().or(z.literal('')),
+  // Initial Follow-up Fields
+  firstFollowUpDate: z.date({ required_error: "Initial follow-up date is required." }),
+  firstFollowUpTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM).").default("10:00"),
+  firstFollowUpMethod: z.enum(['Email', 'Call', 'In-Person'], { required_error: "Follow-up method is required."}).default("Call"),
+  firstFollowUpNotes: z.string().max(500, "Notes are too long.").optional().default("Initial follow-up."),
 });
 
-type ProspectFormValues = z.infer<typeof prospectFormSchema>;
+export type ProspectFormValues = z.infer<typeof prospectFormSchema>;
 
 interface ProspectFormProps {
-  prospect?: Prospect;
+  prospect?: Prospect; // Prospect data for editing (not used for initial follow-up part in edit mode)
   onSubmit: (data: ProspectFormValues) => Promise<void>;
   isSubmitting?: boolean;
 }
@@ -53,7 +62,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
   const { toast } = useToast();
 
   const defaultValues: ProspectFormValues = prospect
-    ? {
+    ? { // Editing existing prospect - initial follow-up fields are not pre-filled from prospect data
         name: prospect.name,
         email: prospect.email || "",
         phone: prospect.phone || "",
@@ -61,8 +70,18 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
         currentFunnelStage: prospect.currentFunnelStage,
         followUpStageNumber: prospect.followUpStageNumber,
         avatarUrl: prospect.avatarUrl || "",
+        // For editing, we don't pre-fill first follow-up fields from prospect's history
+        // These fields are primarily for *new* prospect creation.
+        // If needed for edit, logic would be more complex.
+        // For now, let's assume this form is mainly for 'add' for these specific fields.
+        // Or if present on edit, they would represent a *new* first follow-up to be added.
+        // To keep it simple for 'add' page, we will set defaults here.
+        firstFollowUpDate: new Date(), // Default to today, user must change
+        firstFollowUpTime: "10:00",
+        firstFollowUpMethod: "Call",
+        firstFollowUpNotes: "Initial follow-up.",
       }
-    : {
+    : { // Adding new prospect
         name: "",
         email: "",
         phone: "",
@@ -70,6 +89,10 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
         currentFunnelStage: "Prospect",
         followUpStageNumber: 1,
         avatarUrl: "",
+        firstFollowUpDate: new Date(), // Default to today, user must change
+        firstFollowUpTime: "10:00",
+        firstFollowUpMethod: "Call",
+        firstFollowUpNotes: "Initial follow-up.",
       };
 
   const form = useForm<ProspectFormValues>({
@@ -216,15 +239,76 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 </FormItem>
               )}
             />
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3 pt-2">
+
+            {/* Initial Follow-Up Section - only for new prospects */}
+            {!prospect && (
+              <>
+                <Separator className="my-8" />
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium font-headline">Schedule Initial Follow-Up</h3>
+                  <FormField control={form.control} name="firstFollowUpDate" render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Date*</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button variant={"outline"} className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}>
+                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() -1))} />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        Every prospect should have an initial follow-up. Reminder: The first follow-up is typically most effective within 24-48 hours.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="firstFollowUpTime" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Time*</FormLabel>
+                        <FormControl><Input type="time" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="firstFollowUpMethod" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Method*</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {['Call', 'Email', 'In-Person'].map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="firstFollowUpNotes" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormControl><Textarea placeholder="Initial follow-up objectives..." {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </>
+            )}
+            
+            <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3 pt-4 px-0"> {/* Adjusted padding */}
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !form.formState.isDirty && !!prospect} className="w-full sm:w-auto">
+              <Button type="submit" disabled={isSubmitting || (!form.formState.isDirty && !!prospect)} className="w-full sm:w-auto">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {prospect ? "Save Changes" : "Add Prospect"}
+                {prospect ? "Save Changes" : "Add Prospect & Schedule Follow-Up"}
               </Button>
-            </div>
+            </CardFooter>
           </form>
         </Form>
       </CardContent>
