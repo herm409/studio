@@ -20,15 +20,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"; // Added CardFooter
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CalendarIcon } from "lucide-react"; // Added CalendarIcon
-import React from "react";
+import { Loader2, CalendarIcon, UploadCloud } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Separator } from "@/components/ui/separator"; // Added Separator
+import { Separator } from "@/components/ui/separator";
+import { storage, auth } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const prospectFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(50, "Name must be at most 50 characters."),
@@ -41,8 +44,7 @@ const prospectFormSchema = z.object({
     required_error: "Funnel stage is required.",
   }),
   followUpStageNumber: z.coerce.number().min(1, "Must be at least 1.").max(12, "Must be at most 12."),
-  avatarUrl: z.string().url("Invalid URL format for avatar.").optional().or(z.literal('')),
-  // Initial Follow-up Fields
+  avatarUrl: z.string().url("Invalid URL for avatar. Should be a valid image URL.").optional().or(z.literal('')), // Still needed for form data, but primarily set by file upload
   firstFollowUpDate: z.date({ required_error: "Initial follow-up date is required." }),
   firstFollowUpTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM).").default("10:00"),
   firstFollowUpMethod: z.enum(['Email', 'Call', 'In-Person'], { required_error: "Follow-up method is required."}).default("Call"),
@@ -52,14 +54,24 @@ const prospectFormSchema = z.object({
 export type ProspectFormValues = z.infer<typeof prospectFormSchema>;
 
 interface ProspectFormProps {
-  prospect?: Prospect; // Prospect data for editing (not used for initial follow-up part in edit mode)
+  prospect?: Prospect; 
   onSubmit: (data: ProspectFormValues) => Promise<void>;
   isSubmitting?: boolean;
 }
 
-export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormProps) {
+export function ProspectForm({ prospect, onSubmit, isSubmitting: parentIsSubmitting }: ProspectFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(prospect?.avatarUrl || null);
+  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
+  const currentUserId = auth.currentUser?.uid;
+
+  useEffect(() => {
+    if (prospect?.avatarUrl) {
+      setAvatarPreview(prospect.avatarUrl);
+    }
+  }, [prospect?.avatarUrl]);
 
   const defaultValues: ProspectFormValues = prospect
     ? { 
@@ -95,18 +107,51 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
     mode: "onChange",
   });
 
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "File too large", description: "Avatar image must be less than 5MB.", variant: "destructive" });
+        return;
+      }
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (data: ProspectFormValues) => {
+    if (!currentUserId) {
+      toast({ title: "Error", description: "User not authenticated.", variant: "destructive" });
+      return;
+    }
+    setInternalIsSubmitting(true);
     try {
-      await onSubmit(data);
-    } catch (error) {
+      let finalAvatarUrl = data.avatarUrl; // Use existing URL if no new file
+      if (avatarFile) {
+        // For new prospects, we don't have an ID yet. Upload to a temp-like path.
+        // For existing prospects, use prospect.id.
+        const prospectIdForPath = prospect?.id || `temp_${Date.now()}`;
+        const imageRef = storageRef(storage, `prospectAvatars/${currentUserId}/${prospectIdForPath}/${avatarFile.name}`);
+        await uploadBytes(imageRef, avatarFile);
+        finalAvatarUrl = await getDownloadURL(imageRef);
+      }
+      
+      const dataToSubmit = { ...data, avatarUrl: finalAvatarUrl };
+      await onSubmit(dataToSubmit);
+
+    } catch (error: any) {
       console.error("Error submitting prospect form:", error);
       toast({
         title: "Error",
-        description: `Failed to ${prospect ? 'update' : 'add'} prospect. Please try again.`,
+        description: error.message || `Failed to ${prospect ? 'update' : 'add'} prospect.`,
         variant: "destructive",
       });
+    } finally {
+      setInternalIsSubmitting(false);
     }
   };
+  
+  const isEffectivelySubmitting = parentIsSubmitting || internalIsSubmitting;
 
   return (
     <Card className="max-w-2xl mx-auto shadow-xl">
@@ -116,12 +161,25 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            <div className="flex flex-col items-center space-y-2">
+              <Label htmlFor="avatar-upload">Prospect Avatar (Optional)</Label>
+              <Avatar className="h-24 w-24 border-2">
+                <AvatarImage src={avatarPreview || undefined} alt={form.getValues("name") || "Prospect"} data-ai-hint="person photo"/>
+                <AvatarFallback className="text-3xl">{(form.getValues("name") || "P").charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
+              </Button>
+              <Input id="avatar-upload" type="file" accept="image/*" onChange={handleAvatarFileChange} className="hidden" />
+               <FormDescription>Max 5MB. JPG, PNG, GIF.</FormDescription>
+            </div>
+
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name</FormLabel>
+                  <FormLabel>Full Name*</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Jane Doe" {...field} />
                   </FormControl>
@@ -135,7 +193,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address (Optional)</FormLabel>
+                    <FormLabel>Email Address</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="e.g. jane.doe@example.com" {...field} />
                     </FormControl>
@@ -148,7 +206,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number (Optional)</FormLabel>
+                    <FormLabel>Phone Number</FormLabel>
                     <FormControl>
                       <Input type="tel" placeholder="e.g. 555-123-4567" {...field} />
                     </FormControl>
@@ -162,16 +220,16 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
               name="initialData"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Initial Data & Notes</FormLabel>
+                  <FormLabel>Initial Data &amp; Notes*</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="e.g. Met at conference, interested in product X, budget around $5k. Include details of any past follow-ups here."
+                      placeholder="e.g. Met at conference, interested in product X. Detail any past follow-ups here."
                       className="resize-y min-h-[100px]"
                       {...field}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Background information, interests, how you met them. If prospect has prior interactions, detail them here.
+                   <FormDescription>
+                    Background info, interests, how you met them. If prospect has prior interactions, detail them here.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -183,7 +241,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 name="currentFunnelStage"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Current Funnel Stage</FormLabel>
+                    <FormLabel>Current Funnel Stage*</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                         <SelectTrigger>
@@ -205,36 +263,20 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 name="followUpStageNumber"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Number of Previous Follow-Ups (1-12)</FormLabel>
+                    <FormLabel>Number of Previous Follow-Ups (1-12)*</FormLabel>
                     <FormControl>
                         <Input type="number" min="1" max="12" placeholder="e.g. 1 for new, 12 for many" {...field} />
                     </FormControl>
                     <FormDescription>
-                        Count of follow-ups already done. For color-coding (1=fresh, 12=ripe) and AI context.
+                       Count of follow-ups already completed. For color-coding (1=fresh, 12=ripe) and AI context.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
                 />
             </div>
-            <FormField
-              control={form.control}
-              name="avatarUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Avatar URL (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. https://placehold.co/100x100.png" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Link to an image for the prospect. If blank, a default will be used.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {!prospect && (
+            
+            {!prospect && ( // Only show for new prospects
               <>
                 <Separator className="my-8" />
                 <div className="space-y-4">
@@ -284,7 +326,7 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                   </div>
                   <FormField control={form.control} name="firstFollowUpNotes" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormLabel>Notes</FormLabel>
                       <FormControl><Textarea placeholder="Initial follow-up objectives..." {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -294,12 +336,12 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
             )}
             
             <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3 pt-4 px-0"> 
-              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting} className="w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isEffectivelySubmitting} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || (!form.formState.isDirty && !!prospect)} className="w-full sm:w-auto">
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {prospect ? "Save Changes" : "Add Prospect & Schedule Follow-Up"}
+              <Button type="submit" disabled={isEffectivelySubmitting || (!form.formState.isDirty && !avatarFile && !!prospect)} className="w-full sm:w-auto">
+                {isEffectivelySubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {prospect ? "Save Changes" : "Add Prospect &amp; Schedule Follow-Up"}
               </Button>
             </CardFooter>
           </form>
@@ -308,4 +350,3 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
     </Card>
   );
 }
-

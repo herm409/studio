@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: Allow users to read their own profile and update it.
+    // Anyone can create their own user doc (on signup).
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // No delete for now, or add specific logic if needed
+    }
+
+    // Prospects: Users can only CUD their own prospects. Read access for own prospects.
+    match /prospects/{prospectId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // FollowUps: Users can only CUD their own follow-ups. Read access for own follow-ups.
+    match /followUps/{followUpId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Interactions: Users can only CUD their own interactions. Read access for own interactions.
+    match /interactions/{interactionId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // GamificationStats: Users can only CRUD their own stats.
+    match /gamificationStats/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

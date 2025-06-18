@@ -19,7 +19,9 @@ import {
   deleteField,
 } from 'firebase/firestore';
 import { colorCodeProspect as genAIColorCodeProspect } from '@/ai/flows/color-code-prospect';
+import type { User } from 'firebase/auth';
 
+const USERS_COLLECTION = 'users';
 const PROSPECTS_COLLECTION = 'prospects';
 const FOLLOW_UPS_COLLECTION = 'followUps';
 const INTERACTIONS_COLLECTION = 'interactions';
@@ -31,10 +33,42 @@ function getCurrentUserId(): string | null {
   return auth.currentUser ? auth.currentUser.uid : null;
 }
 
+export async function ensureUserProfileDocument(user: User): Promise<void> {
+  const userDocRef = doc(db, USERS_COLLECTION, user.uid);
+  const userDocSnap = await getDoc(userDocRef);
+
+  if (!userDocSnap.exists()) {
+    try {
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email?.split('@')[0] || "User",
+        photoURL: user.photoURL || `https://placehold.co/100x100.png?text=${(user.displayName || user.email || "U").charAt(0)}`,
+        createdAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error("Error creating user profile document:", error);
+    }
+  }
+}
+
+export async function updateUserFirestoreProfile(userId: string, data: { displayName?: string | null; photoURL?: string | null }): Promise<void> {
+  if (!userId) throw new Error("User ID is required to update profile.");
+  const userDocRef = doc(db, USERS_COLLECTION, userId);
+  const updateData: { [key: string]: any } = {};
+  if (data.displayName !== undefined) updateData.displayName = data.displayName;
+  if (data.photoURL !== undefined) updateData.photoURL = data.photoURL;
+  
+  if (Object.keys(updateData).length > 0) {
+    updateData.updatedAt = Timestamp.now();
+    await updateDoc(userDocRef, updateData);
+  }
+}
+
+
 async function ensureProspectDetails(prospectData: Omit<Prospect, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'colorCode' | 'colorCodeReasoning'> & { id?: string, userId: string, createdAt?: string, updatedAt?: string }): Promise<Partial<Pick<Prospect, 'colorCode' | 'colorCodeReasoning'>>> {
   let updatedDetails: Partial<Pick<Prospect, 'colorCode' | 'colorCodeReasoning'>> = {};
 
-  // Color coding (ensure prospectData has name and followUpStageNumber)
   if ((!prospectData.colorCode || prospectData.colorCode === '#CCCCCC' || !prospectData.colorCodeReasoning) && prospectData.name && prospectData.followUpStageNumber) {
     try {
       const colorResult = await genAIColorCodeProspect({ stage: prospectData.followUpStageNumber, prospectName: prospectData.name });
@@ -42,11 +76,11 @@ async function ensureProspectDetails(prospectData: Omit<Prospect, 'id' | 'userId
       updatedDetails.colorCodeReasoning = colorResult.reasoning;
     } catch (error) {
       console.error(`Error generating color code for prospect ${prospectData.name}:`, error);
-      updatedDetails.colorCode = '#DDDDDD'; // Different fallback for error
+      updatedDetails.colorCode = '#DDDDDD'; 
       updatedDetails.colorCodeReasoning = 'Failed to generate color code due to an error.';
     }
   } else if (!prospectData.colorCode) {
-    updatedDetails.colorCode = '#CCCCCC'; // Default if not generated
+    updatedDetails.colorCode = '#CCCCCC'; 
     updatedDetails.colorCodeReasoning = 'Default color code assigned.';
   }
   return updatedDetails;
@@ -64,7 +98,7 @@ async function calculateNextFollowUpDate(prospectId: string, userId: string): Pr
   const followUpsSnapshot = await getDocs(followUpsQuery);
   if (!followUpsSnapshot.empty) {
     const nextFollowUp = followUpsSnapshot.docs[0].data() as FollowUp;
-    return nextFollowUp.date; // Assuming date is stored as YYYY-MM-DD string
+    return nextFollowUp.date; 
   }
   return undefined;
 }
@@ -150,7 +184,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
   return undefined;
 }
 
-export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate' | 'lastContactedDate' | 'userId'>): Promise<Prospect> {
+export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate' | 'lastContactedDate' | 'userId'> & { avatarUrl?: string }): Promise<Prospect> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
 
@@ -175,12 +209,13 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
   if (prospectData.phone && prospectData.phone.trim() !== "") {
     dataForFirestore.phone = prospectData.phone;
   }
-
+  
   if (prospectData.avatarUrl && prospectData.avatarUrl.trim() !== "") {
     dataForFirestore.avatarUrl = prospectData.avatarUrl;
   } else {
     dataForFirestore.avatarUrl = `https://placehold.co/100x100.png?text=${prospectData.name.charAt(0)}`;
   }
+
 
   const docRef = await addDoc(collection(db, PROSPECTS_COLLECTION), dataForFirestore);
   updateGamificationOnAddProspect();
@@ -197,7 +232,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     colorCode: dataForFirestore.colorCode,
     colorCodeReasoning: dataForFirestore.colorCodeReasoning,
     lastContactedDate: undefined,
-    nextFollowUpDate: undefined,
+    nextFollowUpDate: undefined, // Will be calculated by getProspects or when first follow-up is added
     interactionHistory: [],
     createdAt: now.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),
@@ -222,7 +257,7 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     const value = updates[key];
     if ((key === 'email' || key === 'phone') && value === '') {
       updatesForFirestore[key] = deleteField(); 
-    } else if (key === 'avatarUrl' && value === '') {
+    } else if (key === 'avatarUrl' && (value === '' || value === null || value === undefined)) {
       updatesForFirestore[key] = `https://placehold.co/100x100.png?text=${(updates.name || originalProspectData.name).charAt(0)}`;
     } else if (value !== undefined) { 
       updatesForFirestore[key] = value;
@@ -242,7 +277,7 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
 
   await updateDoc(prospectDocRef, updatesForFirestore);
   const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
-  if (updatedNextFollowUpDate !== originalProspectData.nextFollowUpDate) {
+  if (updatedNextFollowUpDate !== originalProspectData.nextFollowUpDate) { // Check if it actually changed
       await updateDoc(prospectDocRef, { nextFollowUpDate: updatedNextFollowUpDate || deleteField() });
   }
 
@@ -277,7 +312,7 @@ export async function getFollowUpsForProspect(prospectId: string): Promise<Follo
       aiSuggestedTone: data.aiSuggestedTone,
       aiSuggestedContent: data.aiSuggestedContent,
       aiSuggestedTool: data.aiSuggestedTool,
-      createdAt: createdAtTimestamp?.toDate().toISOString(),
+      createdAt: createdAtTimestamp?.toDate().toISOString() ?? new Date(0).toISOString(),
       updatedAt: updatedAtTimestamp?.toDate().toISOString(),
     } as FollowUp;
   });
@@ -291,7 +326,7 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   const startDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
 
   const endDateObj = new Date(startDateObj);
-  endDateObj.setDate(startDateObj.getDate() + days -1); 
+  endDateObj.setDate(startDateObj.getDate() + days - 1); 
 
   const startDateString = startDateObj.toISOString().split('T')[0];
   const endDateString = endDateObj.toISOString().split('T')[0];
@@ -323,7 +358,7 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
       aiSuggestedTone: data.aiSuggestedTone,
       aiSuggestedContent: data.aiSuggestedContent,
       aiSuggestedTool: data.aiSuggestedTool,
-      createdAt: createdAtTimestamp?.toDate().toISOString(),
+      createdAt: createdAtTimestamp?.toDate().toISOString() ?? new Date(0).toISOString(),
       updatedAt: updatedAtTimestamp?.toDate().toISOString(),
     } as FollowUp;
   });
@@ -572,28 +607,20 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
     collection(db, FOLLOW_UPS_COLLECTION),
     where('userId', '==', userId),
     where('status', '==', 'Completed'),
-    where('updatedAt', '>=', fourteenDaysAgoTimestamp) // Querying based on when it was marked completed
+    where('updatedAt', '>=', fourteenDaysAgoTimestamp) 
   );
   const followUpsSnap = await getDocs(followUpsQuery);
   const followUpsCompletedLast14Days = followUpsSnap.size;
   
-  // Interactions Logged
-  // Note: Interaction 'date' is stored as ISO string, but for querying Firestore Timestamps directly is better if possible.
-  // For simplicity with current structure where interaction 'date' is a string upon creation from client:
-  // This part might be less efficient or require client-side filtering if 'date' isn't a Timestamp in FS.
-  // Assuming 'date' in interactions is a Firestore Timestamp for server-side query.
-  // If 'date' is string, this query needs adjustment or a different approach.
-  // The addInteraction function converts to Timestamp, so this should be fine.
   const interactionsQuery = query(
     collection(db, INTERACTIONS_COLLECTION),
     where('userId', '==', userId),
-    where('date', '>=', fourteenDaysAgoTimestamp) // 'date' is a Timestamp in Firestore
+    where('date', '>=', fourteenDaysAgoTimestamp) 
   );
   const interactionsSnap = await getDocs(interactionsQuery);
   const interactionsLoggedLast14Days = interactionsSnap.size;
 
-  // Current Follow-up Streak
-  const gamificationStats = await getGamificationStats(); // This function already handles userId check
+  const gamificationStats = await getGamificationStats(); 
   const currentFollowUpStreak = gamificationStats.followUpStreak;
 
   return {
@@ -603,3 +630,4 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
     currentFollowUpStreak,
   };
 }
+

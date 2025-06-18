@@ -2,33 +2,12 @@
 "use client";
 
 import { ProspectForm } from "@/components/prospects/ProspectForm";
-import type { ProspectFormValues as ProspectFormValuesType } from "@/components/prospects/ProspectForm"; // Import the type
-import { addProspect as serverAddProspect, addFollowUp as serverAddFollowUp } from "@/lib/data"; 
+import type { ProspectFormValues as ProspectFormValuesType } from "@/components/prospects/ProspectForm"; 
+import { addProspect as serverAddProspect, addFollowUp as serverAddFollowUp, updateProspect as serverUpdateProspect } from "@/lib/data"; 
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import React from "react";
-import type { FunnelStageType } from "@/types";
-import * as z from "zod"; 
 import { format } from "date-fns";
-
-// This schema must match the one in ProspectForm.tsx
-const prospectFormSchemaClient = z.object({ 
-  name: z.string().min(2).max(50),
-  email: z.string().email("Invalid email address.").optional().or(z.literal('')),
-  phone: z.string().optional().refine(val => !val || /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/.test(val), {
-    message: "Invalid phone number format.",
-  }),
-  initialData: z.string().min(5).max(500),
-  currentFunnelStage: z.custom<FunnelStageType>(), 
-  followUpStageNumber: z.coerce.number().min(1).max(12),
-  avatarUrl: z.string().url("Invalid URL for avatar.").optional().or(z.literal('')),
-  firstFollowUpDate: z.date({ required_error: "Initial follow-up date is required." }),
-  firstFollowUpTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM).").default("10:00"),
-  firstFollowUpMethod: z.enum(['Email', 'Call', 'In-Person'], { required_error: "Follow-up method is required."}).default("Call"),
-  firstFollowUpNotes: z.string().max(500, "Notes are too long.").optional().default("Initial follow-up."),
-});
-// Use the imported type for values
-type ProspectFormValuesClient = ProspectFormValuesType;
 
 
 export default function AddProspectPage() {
@@ -36,7 +15,7 @@ export default function AddProspectPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const handleAddProspect = async (data: ProspectFormValuesClient) => {
+  const handleAddProspect = async (data: ProspectFormValuesType) => {
     setIsSubmitting(true);
     try {
       const prospectDataForCreation = {
@@ -46,16 +25,15 @@ export default function AddProspectPage() {
         initialData: data.initialData,
         currentFunnelStage: data.currentFunnelStage,
         followUpStageNumber: data.followUpStageNumber,
-        avatarUrl: data.avatarUrl,
+        avatarUrl: data.avatarUrl, // This URL is now from ProspectForm's internal upload logic
       };
-      // The serverAddProspect function in data.ts now handles userId internally
+      
       const newProspect = await serverAddProspect(prospectDataForCreation); 
       toast({
         title: "Success",
         description: "New prospect added successfully.",
       });
 
-      // Schedule the initial follow-up
       if (newProspect && data.firstFollowUpDate) {
         try {
           await serverAddFollowUp({
@@ -63,7 +41,7 @@ export default function AddProspectPage() {
             date: format(data.firstFollowUpDate, "yyyy-MM-dd"),
             time: data.firstFollowUpTime,
             method: data.firstFollowUpMethod,
-            notes: data.firstFollowUpNotes || "Initial follow-up.", // Ensure notes is a string
+            notes: data.firstFollowUpNotes || "Initial follow-up.",
             status: 'Pending',
           });
           toast({

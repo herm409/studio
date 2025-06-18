@@ -8,9 +8,11 @@ import {
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  signOut as firebaseSignOut 
+  signOut as firebaseSignOut,
+  updateProfile
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; // Assuming your firebase init is in lib/firebase.ts
+import { auth } from '@/lib/firebase'; 
+import { ensureUserProfileDocument } from '@/lib/data';
 import { Loader2 } from 'lucide-react';
 
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
   signUp: (email: string, pass: string) => Promise<User | null>;
   signIn: (email: string, pass: string) => Promise<User | null>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>; // To refresh user state after profile updates
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,19 +33,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        await ensureUserProfileDocument(currentUser);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  const refreshUser = async () => {
+    setLoading(true);
+    if (auth.currentUser) {
+      await auth.currentUser.reload(); // Fetches the latest user data from Firebase Auth
+      const refreshedUser = auth.currentUser; // Get the reloaded user
+      setUser(refreshedUser); // Update state
+       if (refreshedUser) {
+        await ensureUserProfileDocument(refreshedUser); // Ensure Firestore doc is also up-to-date/exists
+      }
+    }
+    setLoading(false);
+  };
+
 
   const signUp = async (email: string, pass: string): Promise<User | null> => {
     setLoading(true);
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
+      // Set a default display name if not set
+      if (userCredential.user && !userCredential.user.displayName) {
+        const defaultDisplayName = email.split('@')[0];
+        await updateProfile(userCredential.user, { displayName: defaultDisplayName });
+      }
+      // ensureUserProfileDocument will be called by onAuthStateChanged
+      setUser(userCredential.user); 
       return userCredential.user;
     } catch (err: any) {
       setError(err.message);
@@ -57,6 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      // ensureUserProfileDocument will be called by onAuthStateChanged
       setUser(userCredential.user);
       return userCredential.user;
     } catch (err: any) {
@@ -80,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  if (loading) {
+  if (loading && typeof window !== 'undefined' && window.location.pathname !== '/login') { // Avoid full screen loader on login page itself during initial auth check
      return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -89,8 +116,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, error, signUp, signIn, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
