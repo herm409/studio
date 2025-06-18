@@ -43,6 +43,7 @@ export interface Prospect {
   nextFollowUpDate?: string; // ISO string "YYYY-MM-DD"
   followUpStageNumber: number; // 1-12 for color coding
   interactionHistory: Interaction[]; 
+  isArchived?: boolean; // Added for archiving closed prospects
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   avatarUrl?: string; // URL for placeholder or actual image

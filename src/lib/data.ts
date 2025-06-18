@@ -45,6 +45,7 @@ interface ProspectDocData {
   colorCodeReasoning?: string;
   lastContactedDate?: Timestamp | string;
   nextFollowUpDate?: Timestamp | string;
+  isArchived?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   avatarUrl?: string;
@@ -96,8 +97,6 @@ interface EnsureProspectDetailsInput {
 async function ensureProspectDetails(prospectData: EnsureProspectDetailsInput): Promise<Partial<Pick<Prospect, 'colorCode' | 'colorCodeReasoning'>>> {
   let updatedDetails: Partial<Pick<Prospect, 'colorCode' | 'colorCodeReasoning'>> = {};
 
-  // Regenerate color code if it's missing, the default placeholder, or reasoning is missing,
-  // AND we have the necessary info (name, stage number).
   if ((!prospectData.colorCode || prospectData.colorCode === '#CCCCCC' || !prospectData.colorCodeReasoning) && prospectData.name && prospectData.followUpStageNumber) {
     try {
       const colorResult = await genAIColorCodeProspect({ stage: prospectData.followUpStageNumber, prospectName: prospectData.name });
@@ -105,11 +104,10 @@ async function ensureProspectDetails(prospectData: EnsureProspectDetailsInput): 
       updatedDetails.colorCodeReasoning = colorResult.reasoning;
     } catch (error) {
       console.error(`Error generating color code for prospect ${prospectData.name || prospectData.id}:`, error);
-      updatedDetails.colorCode = '#DDDDDD'; // Use a different default on error to distinguish
+      updatedDetails.colorCode = '#DDDDDD'; 
       updatedDetails.colorCodeReasoning = 'Failed to generate color code due to an error.';
     }
   } else if (!prospectData.colorCode) {
-    // Fallback if regeneration conditions aren't met but color code is still missing.
     updatedDetails.colorCode = '#CCCCCC'; 
     updatedDetails.colorCodeReasoning = 'Default color code assigned as no specific conditions met for AI generation.';
   }
@@ -117,6 +115,12 @@ async function ensureProspectDetails(prospectData: EnsureProspectDetailsInput): 
 }
 
 async function calculateNextFollowUpDate(prospectId: string, userId: string): Promise<string | undefined> {
+  const prospectDocRef = doc(db, PROSPECTS_COLLECTION, prospectId);
+  const prospectSnap = await getDoc(prospectDocRef);
+  if (prospectSnap.exists() && prospectSnap.data()?.isArchived === true) {
+    return undefined; // Archived prospects don't have a next follow-up date
+  }
+
   const followUpsQuery = query(
     collection(db, FOLLOW_UPS_COLLECTION),
     where('prospectId', '==', prospectId),
@@ -138,7 +142,12 @@ export async function getProspects(): Promise<Prospect[]> {
   const userId = getCurrentUserId();
   if (!userId) return [];
 
-  const q = query(collection(db, PROSPECTS_COLLECTION), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+  const q = query(
+    collection(db, PROSPECTS_COLLECTION), 
+    where('userId', '==', userId), 
+    where('isArchived', '!=', true), // Fetch only non-archived (isArchived is false or undefined)
+    orderBy('createdAt', 'desc')
+  );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
   for (const prospectDoc of querySnapshot.docs) {
@@ -149,7 +158,7 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof (rawLCD as Timestamp).toDate === 'function') { // Duck typing
+        } else if (rawLCD && typeof (rawLCD as any).toDate === 'function') {
             lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
@@ -159,14 +168,15 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD;
-        } else if (rawNFD && typeof (rawNFD as Timestamp).toDate === 'function') { // Duck typing
-            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0]; // Ensure YYYY-MM-DD
+        } else if (rawNFD && typeof (rawNFD as any).toDate === 'function') { 
+            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
         }
     }
     
-    if (nextFollowUpDateValue === undefined) { 
+    if (nextFollowUpDateValue === undefined && !data.isArchived) { 
         nextFollowUpDateValue = await calculateNextFollowUpDate(prospectDoc.id, userId);
     }
+
 
     const prospect: Prospect = {
       id: prospectDoc.id,
@@ -182,6 +192,7 @@ export async function getProspects(): Promise<Prospect[]> {
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: [], 
+      isArchived: data.isArchived || false,
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
@@ -220,7 +231,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof (rawLCD as Timestamp).toDate === 'function') { // Duck typing
+        } else if (rawLCD && typeof (rawLCD as any).toDate === 'function') {
             lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
@@ -230,12 +241,12 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD;
-        } else if (rawNFD && typeof (rawNFD as Timestamp).toDate === 'function') { // Duck typing
-             nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0]; // Ensure YYYY-MM-DD
+        } else if (rawNFD && typeof (rawNFD as any).toDate === 'function') { 
+             nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
         }
     }
 
-    if (nextFollowUpDateValue === undefined) { 
+    if (nextFollowUpDateValue === undefined && !data.isArchived) { 
         nextFollowUpDateValue = await calculateNextFollowUpDate(id, userId);
     }
 
@@ -253,6 +264,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: interactionHistory,
+      isArchived: data.isArchived || false,
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
@@ -262,7 +274,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
   return undefined;
 }
 
-export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate' | 'lastContactedDate' | 'userId'> & { avatarUrl?: string }): Promise<Prospect> {
+export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate' | 'lastContactedDate' | 'userId' | 'isArchived'> & { avatarUrl?: string }): Promise<Prospect> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
 
@@ -283,6 +295,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     followUpStageNumber: prospectData.followUpStageNumber,
     userId,
     ...aiDetails, 
+    isArchived: false, // Initialize as not archived
     createdAt: now,
     updatedAt: now,
   };
@@ -319,6 +332,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     lastContactedDate: undefined,
     nextFollowUpDate: undefined, 
     interactionHistory: [],
+    isArchived: false,
     createdAt: now.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),
     avatarUrl: dataForFirestore.avatarUrl,
@@ -350,8 +364,8 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   }
   
   if (updates.followUpStageNumber && updates.followUpStageNumber !== originalProspectData.followUpStageNumber ||
-      (updates.name && updates.name !== originalProspectData.name) || // Also check if name changed for color code regen
-      (!updatesForFirestore.colorCode && originalProspectData.colorCode === '#CCCCCC') // If color code is default, try to regen
+      (updates.name && updates.name !== originalProspectData.name) || 
+      (!updatesForFirestore.colorCode && originalProspectData.colorCode === '#CCCCCC')
      ) {
     const aiDetails = await ensureProspectDetails({
       id: id,
@@ -366,15 +380,39 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     Object.assign(updatesForFirestore, aiDetails); 
   }
 
+  // Handle archiving based on funnel stage
+  if (updates.currentFunnelStage === "Close") {
+    updatesForFirestore.isArchived = true;
+    updatesForFirestore.nextFollowUpDate = deleteField(); // Clear next follow-up when closed
+  } else if (originalProspectData.currentFunnelStage === "Close" && updates.currentFunnelStage && updates.currentFunnelStage !== "Close") {
+    // If moving out of "Close", unarchive
+    updatesForFirestore.isArchived = false;
+    // nextFollowUpDate will be recalculated later
+  } else if (updates.currentFunnelStage === undefined && originalProspectData.currentFunnelStage === "Close") {
+    // If stage is not changing but it's already "Close", ensure it stays archived and nextFollowUpDate is cleared
+    updatesForFirestore.isArchived = true;
+    updatesForFirestore.nextFollowUpDate = deleteField();
+  }
+
+
   await updateDoc(prospectDocRef, updatesForFirestore);
-  const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
   
+  // Recalculate nextFollowUpDate if not archived or if it was just unarchived
+  const finalProspectData = (await getDoc(prospectDocRef)).data() as ProspectDocData;
+  let updatedNextFollowUpDate;
+  if (finalProspectData.isArchived === true) {
+    updatedNextFollowUpDate = undefined; // Explicitly undefined for archived
+  } else {
+    updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
+  }
+  
+  // Check if the calculated date differs from what might have been set by stage change (e.g., deleteField)
   let currentStoredNextFollowUp: string | undefined = undefined;
-  const rawNFD = (await getDoc(prospectDocRef)).data()?.nextFollowUpDate; // Re-fetch prospect data after initial update
+  const rawNFD = finalProspectData.nextFollowUpDate;
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
-            currentStoredNextFollowUp = rawNFD.split('T')[0]; // Ensure YYYY-MM-DD
-        } else if (rawNFD && typeof (rawNFD as Timestamp).toDate === 'function') {
+            currentStoredNextFollowUp = rawNFD.split('T')[0]; 
+        } else if (rawNFD && typeof (rawNFD as any).toDate === 'function') {
             currentStoredNextFollowUp = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
         }
     }
@@ -444,7 +482,7 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   );
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(docSnap => {
+  const followUps = querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     const createdAtTimestamp = data.createdAt as Timestamp | undefined;
     const updatedAtTimestamp = data.updatedAt as Timestamp | undefined;
@@ -464,11 +502,28 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
       updatedAt: updatedAtTimestamp?.toDate().toISOString(),
     } as FollowUp;
   });
+
+  // Filter out follow-ups for archived prospects
+  const activeFollowUps = [];
+  for (const fu of followUps) {
+    const prospectDoc = await getDoc(doc(db, PROSPECTS_COLLECTION, fu.prospectId));
+    if (prospectDoc.exists() && prospectDoc.data()?.isArchived !== true) {
+      activeFollowUps.push(fu);
+    }
+  }
+  return activeFollowUps;
 }
 
 export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt'| 'userId'>): Promise<FollowUp> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
+
+  const prospectDocRefForCheck = doc(db, PROSPECTS_COLLECTION, followUpData.prospectId);
+  const prospectSnapForCheck = await getDoc(prospectDocRefForCheck);
+  if (prospectSnapForCheck.exists() && prospectSnapForCheck.data()?.isArchived === true) {
+    throw new Error("Cannot add follow-up to an archived prospect.");
+  }
+
 
   const now = Timestamp.now();
   const newFollowUpData = {
@@ -526,7 +581,6 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
   if (updates.status && updates.status !== 'Pending' && originalFollowUpForGamification.status === 'Pending') {
      updateGamificationOnFollowUpComplete(originalFollowUpForGamification, updatedFollowUpForGamification);
 
-     // Increment prospect's followUpStageNumber if follow-up is 'Completed'
      if (updatedFollowUpForGamification.status === 'Completed') {
         const prospectDocToUpdateRef = doc(db, PROSPECTS_COLLECTION, originalFollowUpData.prospectId);
         const prospectSnapToUpdate = await getDoc(prospectDocToUpdateRef);
@@ -570,7 +624,7 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
   const nextFollowUpDate = await calculateNextFollowUpDate(originalFollowUpData.prospectId, userId);
   await updateDoc(prospectDocRef, {
       nextFollowUpDate: nextFollowUpDate || deleteField(),
-      updatedAt: Timestamp.now() // Ensure prospect's updatedAt is touched
+      updatedAt: Timestamp.now()
     });
 
   const updatedSnap = await getDoc(followUpDocRef);
@@ -615,6 +669,10 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   if (!prospectSnap.exists() || prospectSnap.data().userId !== userId) {
     throw new Error("Prospect not found or unauthorized to add interaction.");
   }
+  if (prospectSnap.data()?.isArchived === true) {
+    throw new Error("Cannot add interaction to an archived prospect.");
+  }
+
 
   const interactionTimestamp = Timestamp.fromDate(new Date(interactionData.date));
   const newInteractionData = {
@@ -626,7 +684,7 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   const docRef = await addDoc(collection(db, INTERACTIONS_COLLECTION), newInteractionData);
 
   await updateDoc(prospectDocRef, {
-      lastContactedDate: interactionTimestamp, // Store as Timestamp
+      lastContactedDate: interactionTimestamp, 
       updatedAt: Timestamp.now()
     });
 
