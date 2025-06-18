@@ -107,15 +107,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  if (loading && typeof window !== 'undefined' && window.location.pathname !== '/login') { // Avoid full screen loader on login page itself during initial auth check
-     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg text-muted-foreground">Loading Application...</p>
-      </div>
-    );
-  }
-
+  // The problematic loader that caused hydration error has been removed from here.
+  // Loading states should be handled by consuming components like AuthenticatedLayout or individual pages.
 
   return (
     <AuthContext.Provider value={{ user, loading, error, signUp, signIn, signOut, refreshUser }}>
