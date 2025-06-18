@@ -85,6 +85,8 @@ export default function ProspectDetailPage() {
   const [aiToolSuggestions, setAiToolSuggestions] = useState<SuggestToolsOutput | null>(null);
   const [isToolsLoading, setIsToolsLoading] = useState(false);
 
+  const [isUpdatingStage, setIsUpdatingStage] = useState(false); // New state for stage update
+
   const interactionForm = useForm<InteractionFormData>({ resolver: zodResolver(interactionSchema), defaultValues: { type: 'Note', summary: '' } });
   const followUpForm = useForm<FollowUpFormData>({ resolver: zodResolver(followUpSchema), defaultValues: { method: 'Email', time: '10:00', notes: '' } });
 
@@ -290,6 +292,20 @@ export default function ProspectDetailPage() {
       setIsToolsLoading(false);
     }
   };
+
+  const handleFunnelStageChange = async (newStage: FunnelStageType) => {
+    if (!prospect || !user) return;
+    setIsUpdatingStage(true);
+    try {
+      await serverUpdateProspect(prospect.id, { currentFunnelStage: newStage });
+      toast({ title: "Success", description: `Prospect stage updated to "${newStage}".` });
+      fetchProspectData(); // This will re-fetch and update the prospect state including the new stage
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update prospect stage.", variant: "destructive" });
+    } finally {
+      setIsUpdatingStage(false);
+    }
+  };
   
   const sortedInteractions = useMemo(() => 
     prospect?.interactionHistory?.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() ) || [], 
@@ -305,7 +321,11 @@ export default function ProspectDetailPage() {
 
   return (
     <div className="space-y-8">
-      <ProspectDetailCard prospect={prospect} />
+      <ProspectDetailCard 
+        prospect={prospect} 
+        onStageChange={handleFunnelStageChange}
+        isUpdatingStage={isUpdatingStage}
+      />
 
       <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6">
         <AiSuggestionCard
