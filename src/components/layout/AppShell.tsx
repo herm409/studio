@@ -13,7 +13,9 @@ const getPageTitle = (pathname: string): string => {
   if (pathname.startsWith("/prospects/add")) return "Add New Prospect";
   if (pathname.startsWith("/prospects/")) return "Prospect Details";
   if (pathname.startsWith("/prospects")) return "Prospects";
+  if (pathname.startsWith("/calendar")) return "Calendar";
   if (pathname.startsWith("/gamification")) return "Gamification";
+  if (pathname.startsWith("/ai-tools")) return "AI Tools";
   if (pathname.startsWith("/settings")) return "Settings";
   return "Follow-Up Flow";
 };
