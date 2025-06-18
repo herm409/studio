@@ -119,7 +119,7 @@ export default function ProspectDetailPage() {
   const handleAddInteraction = async (data: InteractionFormData) => {
     if (!prospect || !user) return;
     try {
-      await serverAddInteraction(prospect.id, { ...data, date: new Date().toISOString() });
+      await serverAddInteraction(prospect.id, { ...data, prospectId: prospect.id, date: new Date().toISOString() });
       toast({ title: "Success", description: "Interaction logged." });
       fetchProspectData(); 
       setIsInteractionModalOpen(false);
