@@ -27,10 +27,27 @@ const FOLLOW_UPS_COLLECTION = 'followUps';
 const INTERACTIONS_COLLECTION = 'interactions';
 const GAMIFICATION_COLLECTION = 'gamificationStats';
 
-
 // Helper to get current user ID
 function getCurrentUserId(): string | null {
   return auth.currentUser ? auth.currentUser.uid : null;
+}
+
+// Interface for raw prospect data from Firestore
+interface ProspectDocData {
+  userId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  initialData: string;
+  currentFunnelStage: FunnelStageType;
+  followUpStageNumber: number;
+  colorCode?: string;
+  colorCodeReasoning?: string;
+  lastContactedDate?: Timestamp | string;
+  nextFollowUpDate?: Timestamp | string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  avatarUrl?: string;
 }
 
 export async function ensureUserProfileDocument(user: User): Promise<void> {
@@ -122,15 +139,15 @@ export async function getProspects(): Promise<Prospect[]> {
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
   for (const prospectDoc of querySnapshot.docs) {
-    let data = prospectDoc.data() as Omit<Prospect, 'id' | 'interactionHistory'> & { createdAt: Timestamp, updatedAt: Timestamp, lastContactedDate?: Timestamp | string, nextFollowUpDate?: Timestamp | string };
+    const data = prospectDoc.data() as ProspectDocData;
 
     let lastContactedDateValue: string | undefined = undefined;
     const rawLCD = data.lastContactedDate;
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof rawLCD.toDate === 'function') { // Duck typing
-            lastContactedDateValue = rawLCD.toDate().toISOString();
+        } else if (typeof (rawLCD as any).toDate === 'function') { // Duck typing for Timestamp
+            lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
 
@@ -139,12 +156,12 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD;
-        } else if (rawNFD && typeof rawNFD.toDate === 'function') { // Duck typing
-            nextFollowUpDateValue = rawNFD.toDate().toISOString();
+        } else if (typeof (rawNFD as any).toDate === 'function') { // Duck typing for Timestamp
+            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString();
         }
     }
     
-    if (nextFollowUpDateValue === undefined) { // If still undefined, calculate it
+    if (nextFollowUpDateValue === undefined) { 
         nextFollowUpDateValue = await calculateNextFollowUpDate(prospectDoc.id, userId);
     }
 
@@ -161,9 +178,9 @@ export async function getProspects(): Promise<Prospect[]> {
       colorCodeReasoning: data.colorCodeReasoning,
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
-      interactionHistory: [], // This should be populated if needed by a separate query or passed
-      createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-      updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
+      interactionHistory: [], 
+      createdAt: data.createdAt.toDate().toISOString(),
+      updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
     };
     prospectsList.push(prospect);
@@ -179,7 +196,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
   const prospectDocSnap = await getDoc(prospectDocRef);
 
   if (prospectDocSnap.exists()) {
-    const data = prospectDocSnap.data() as Omit<Prospect, 'id' | 'interactionHistory'> & { createdAt: Timestamp, updatedAt: Timestamp, lastContactedDate?: Timestamp | string, nextFollowUpDate?: Timestamp | string };
+    const data = prospectDocSnap.data() as ProspectDocData;
     if (data.userId !== userId) return undefined;
 
     const interactionsQuery = query(
@@ -200,8 +217,8 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof rawLCD.toDate === 'function') { // Duck typing
-            lastContactedDateValue = rawLCD.toDate().toISOString();
+        } else if (typeof (rawLCD as any).toDate === 'function') { // Duck typing for Timestamp
+            lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
 
@@ -210,12 +227,12 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD;
-        } else if (rawNFD && typeof rawNFD.toDate === 'function') { // Duck typing
-            nextFollowUpDateValue = rawNFD.toDate().toISOString();
+        } else if (typeof (rawNFD as any).toDate === 'function') { // Duck typing for Timestamp
+            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString();
         }
     }
 
-    if (nextFollowUpDateValue === undefined) { // If still undefined, calculate it
+    if (nextFollowUpDateValue === undefined) { 
         nextFollowUpDateValue = await calculateNextFollowUpDate(id, userId);
     }
 
@@ -233,8 +250,8 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: interactionHistory,
-      createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-      updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
+      createdAt: data.createdAt.toDate().toISOString(),
+      updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
     };
     return prospect;
@@ -315,7 +332,7 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     throw new Error("Prospect not found or unauthorized");
   }
   
-  const originalProspectData = prospectSnap.data() as Prospect; 
+  const originalProspectData = prospectSnap.data() as ProspectDocData; 
   const updatesForFirestore: { [key: string]: any } = { updatedAt: Timestamp.now() };
 
   for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
@@ -346,13 +363,13 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   await updateDoc(prospectDocRef, updatesForFirestore);
   const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
   
-  const currentStoredNextFollowUpTimestamp = prospectSnap.data().nextFollowUpDate;
   let currentStoredNextFollowUp: string | undefined = undefined;
-    if (currentStoredNextFollowUpTimestamp) {
-        if (typeof currentStoredNextFollowUpTimestamp === 'string') {
-            currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp; // Assumes it's already YYYY-MM-DD
-        } else if (typeof currentStoredNextFollowUpTimestamp.toDate === 'function') { // Duck typing
-            currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp.toDate().toISOString().split('T')[0]; // Get YYYY-MM-DD
+  const rawNFD = originalProspectData.nextFollowUpDate; // Using original data from Firestore
+    if (rawNFD) {
+        if (typeof rawNFD === 'string') {
+            currentStoredNextFollowUp = rawNFD.split('T')[0]; // Ensure YYYY-MM-DD
+        } else if (typeof (rawNFD as any).toDate === 'function') {
+            currentStoredNextFollowUp = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
         }
     }
 
@@ -558,14 +575,13 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   const newInteractionData = {
     ...interactionData, 
     userId,
-    // prospectId is already in interactionData due to updated type
     date: interactionTimestamp,
   };
 
   const docRef = await addDoc(collection(db, INTERACTIONS_COLLECTION), newInteractionData);
 
   await updateDoc(prospectDocRef, {
-      lastContactedDate: interactionTimestamp.toDate().toISOString(), 
+      lastContactedDate: interactionTimestamp, // Store as Timestamp
       updatedAt: Timestamp.now()
     });
 
@@ -709,5 +725,3 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
     currentFollowUpStreak,
   };
 }
-
-    
