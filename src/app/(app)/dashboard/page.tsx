@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { Target, Trophy } from "lucide-react";
 import type { GamificationStats } from "@/types";
 
+export const dynamic = 'force-dynamic'; // Ensures the page is re-rendered on every request
+
 const DAILY_PROSPECT_GOAL = 2; // Consistent with gamification page
 
 export default async function DashboardPage() {
