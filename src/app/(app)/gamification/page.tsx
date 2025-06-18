@@ -8,7 +8,7 @@ import type { GamificationStats } from '@/types';
 import { getGamificationStats } from '@/lib/data'; 
 import { useAuth } from '@/context/AuthContext';
 
-const DAILY_PROSPECT_GOAL = 5;
+const DAILY_PROSPECT_GOAL = 2; // Updated from 5 to 2
 const STREAK_MILESTONES = [5, 10, 25, 50, 100];
 
 export default function GamificationPage() {

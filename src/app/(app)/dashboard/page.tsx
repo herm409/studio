@@ -1,3 +1,4 @@
+
 import { UpcomingFollowUps } from "@/components/dashboard/UpcomingFollowUps";
 import { getUpcomingFollowUps, getProspects, getGamificationStats } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,11 +29,11 @@ export default async function DashboardPage() {
           <CardContent className="space-y-4">
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Daily Prospect Goal (5)</span>
-                <span className="text-sm text-primary font-semibold">0 / 5</span>
+                <span className="text-sm font-medium">Daily Prospect Goal (2)</span> 
+                <span className="text-sm text-primary font-semibold">0 / 2</span>
               </div>
               <Progress value={0} aria-label="Daily prospect goal progress" />
-              <p className="text-xs text-muted-foreground mt-1">Add 5 new prospects today!</p>
+              <p className="text-xs text-muted-foreground mt-1">Add 2 new prospects today!</p>
             </div>
             <div>
               <div className="flex justify-between mb-1">
