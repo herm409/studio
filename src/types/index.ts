@@ -6,7 +6,7 @@ export const FunnelStages: FunnelStageType[] = ["Prospect", "Viewed Media/Presen
 export interface Interaction {
   id: string;
   date: string; // ISO string
-  type: 'Email' | 'Call' | 'Meeting' | 'Note';
+  type: 'Email' | 'Call' | 'Meeting' | 'Note' | 'Text Message';
   summary: string;
   outcome?: string;
 }
@@ -51,3 +51,4 @@ export interface GamificationStats {
   totalOnTimeFollowUps: number;
   totalMissedFollowUps: number;
 }
+

@@ -1,6 +1,7 @@
+
 import type { Interaction } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, Users, MessageSquare, CalendarCheck2 } from "lucide-react";
+import { Mail, Phone, Users, MessageSquare, CalendarCheck2, MessageSquareText } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 interface InteractionCardProps {
@@ -13,6 +14,7 @@ const getInteractionIcon = (type: Interaction['type']) => {
     case 'Call': return <Phone className="w-5 h-5 text-accent" />;
     case 'Meeting': return <Users className="w-5 h-5 text-green-500" />;
     case 'Note': return <MessageSquare className="w-5 h-5 text-purple-500" />;
+    case 'Text Message': return <MessageSquareText className="w-5 h-5 text-blue-500" />;
     default: return <CalendarCheck2 className="w-5 h-5 text-muted-foreground" />;
   }
 };
@@ -40,3 +42,4 @@ export function InteractionCard({ interaction }: InteractionCardProps) {
     </Card>
   );
 }
+

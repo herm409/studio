@@ -34,7 +34,7 @@ import * as z from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const interactionSchema = z.object({
-  type: z.enum(['Email', 'Call', 'Meeting', 'Note']),
+  type: z.enum(['Email', 'Call', 'Meeting', 'Note', 'Text Message']),
   summary: z.string().min(5, "Summary is too short.").max(500, "Summary is too long."),
   outcome: z.string().optional(),
 });
@@ -323,7 +323,7 @@ export default function ProspectDetailPage() {
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {['Email', 'Call', 'Meeting', 'Note'].map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                          {['Email', 'Call', 'Meeting', 'Note', 'Text Message'].map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       <FormMessage />
