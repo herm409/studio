@@ -1,3 +1,4 @@
+
 import type { Prospect, FollowUp, Interaction, FunnelStageType, GamificationStats } from '@/types';
 import { colorCodeProspect as genAIColorCodeProspect } from '@/ai/flows/color-code-prospect';
 
@@ -9,7 +10,7 @@ let prospects: Prospect[] = [
     phone: '555-1234',
     initialData: 'Interested in AI solutions for retail. Met at TechCon 2024.',
     currentFunnelStage: 'Viewed Media/Presentation',
-    followUpStageNumber: 3, // Example stage number
+    followUpStageNumber: 3,
     interactionHistory: [
       { id: 'int1', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), type: 'Email', summary: 'Sent initial brochure.', outcome: 'Opened email.' },
       { id: 'int2', date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), type: 'Call', summary: 'Brief discussion about needs.', outcome: 'Scheduled demo.' },
@@ -19,6 +20,7 @@ let prospects: Prospect[] = [
     updatedAt: new Date().toISOString(),
     avatarUrl: 'https://placehold.co/100x100.png',
     lastContactedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    // colorCode and nextFollowUpDate will be set by ensureProspectDetails
   },
   {
     id: '2',
@@ -32,6 +34,7 @@ let prospects: Prospect[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     avatarUrl: 'https://placehold.co/100x100.png',
+    // colorCode and nextFollowUpDate will be set by ensureProspectDetails
   },
   {
     id: '3',
@@ -51,6 +54,7 @@ let prospects: Prospect[] = [
     updatedAt: new Date().toISOString(),
     avatarUrl: 'https://placehold.co/100x100.png',
     lastContactedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    // colorCode and nextFollowUpDate will be set by ensureProspectDetails
   },
 ];
 
@@ -88,7 +92,7 @@ let followUps: FollowUp[] = [
      {
       id: 'fu4',
       prospectId: '1',
-      date: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(), // More than 7 days away
+      date: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(), 
       time: '15:00',
       method: 'Call',
       notes: 'Check in before end of quarter.',
@@ -97,38 +101,45 @@ let followUps: FollowUp[] = [
     }
 ];
 
-// Initialize color codes for existing prospects
-prospects.forEach(async (p) => {
-  if (!p.colorCode) {
-    try {
-      const colorResult = await genAIColorCodeProspect({ stage: p.followUpStageNumber, prospectName: p.name });
-      p.colorCode = colorResult.colorCode;
-      p.colorCodeReasoning = colorResult.reasoning;
-    } catch (error) {
-      console.error("Error generating color code for prospect:", p.name, error);
-      p.colorCode = '#CCCCCC'; // Default color on error
-      p.colorCodeReasoning = 'Could not generate color code.';
-    }
-  }
-  // Initialize nextFollowUpDate for prospects
-  const prospectFollowUps = followUps.filter(fu => fu.prospectId === p.id && fu.status === 'Pending')
+async function ensureProspectDetails(prospect: Prospect): Promise<void> {
+  // Calculate nextFollowUpDate
+  const prospectFollowUps = followUps.filter(fu => fu.prospectId === prospect.id && fu.status === 'Pending')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   if (prospectFollowUps.length > 0) {
-    p.nextFollowUpDate = prospectFollowUps[0].date;
+    prospect.nextFollowUpDate = prospectFollowUps[0].date;
+  } else {
+    prospect.nextFollowUpDate = undefined;
   }
-});
 
+  // Ensure color code is set, fetching from AI if necessary
+  if (!prospect.colorCode || prospect.colorCode === '#CCCCCC' || !prospect.colorCodeReasoning) {
+    try {
+      const colorResult = await genAIColorCodeProspect({ stage: prospect.followUpStageNumber, prospectName: prospect.name });
+      prospect.colorCode = colorResult.colorCode;
+      prospect.colorCodeReasoning = colorResult.reasoning;
+    } catch (error) {
+      console.error(`Error generating color code for prospect ${prospect.name}:`, error);
+      prospect.colorCode = '#DDDDDD'; // Fallback color on error
+      prospect.colorCodeReasoning = 'Failed to generate color code.';
+    }
+  }
+}
 
 export async function getProspects(): Promise<Prospect[]> {
+  await Promise.all(prospects.map(p => ensureProspectDetails(p)));
   return JSON.parse(JSON.stringify(prospects));
 }
 
 export async function getProspectById(id: string): Promise<Prospect | undefined> {
   const prospect = prospects.find(p => p.id === id);
-  return prospect ? JSON.parse(JSON.stringify(prospect)) : undefined;
+  if (prospect) {
+    await ensureProspectDetails(prospect);
+    return JSON.parse(JSON.stringify(prospect));
+  }
+  return undefined;
 }
 
-export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'scheduledFollowUps' | 'colorCode' | 'colorCodeReasoning'>): Promise<Prospect> {
+export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt' | 'interactionHistory' | 'scheduledFollowUps' | 'colorCode' | 'colorCodeReasoning' | 'nextFollowUpDate'>): Promise<Prospect> {
   const newId = String(prospects.length + 1 + Date.now());
   const now = new Date().toISOString();
   
@@ -140,6 +151,8 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     colorCodeReasoning = colorResult.reasoning;
   } catch (error) {
     console.error("Error generating color code for new prospect:", prospectData.name, error);
+    colorCode = '#DDDDDD'; // Fallback color on error
+    colorCodeReasoning = 'Failed to generate color code.';
   }
 
   const newProspect: Prospect = {
@@ -152,6 +165,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     colorCode,
     colorCodeReasoning,
     avatarUrl: prospectData.avatarUrl || `https://placehold.co/100x100.png?text=${prospectData.name.charAt(0)}`
+    // nextFollowUpDate will be undefined initially, set by ensureProspectDetails when fetched or by addFollowUp
   };
   prospects.push(newProspect);
   updateGamificationOnAddProspect();
@@ -172,11 +186,16 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
       updatedProspect.colorCodeReasoning = colorResult.reasoning;
     } catch (error) {
       console.error("Error updating color code for prospect:", updatedProspect.name, error);
+      // Keep existing or set a default if it was never set
+      updatedProspect.colorCode = originalProspect.colorCode || '#DDDDDD';
+      updatedProspect.colorCodeReasoning = originalProspect.colorCodeReasoning || 'Failed to update color code.';
     }
   }
   
   prospects[prospectIndex] = updatedProspect;
-  return JSON.parse(JSON.stringify(updatedProspect));
+  // Re-ensure all details, including nextFollowUpDate, after update
+  await ensureProspectDetails(prospects[prospectIndex]);
+  return JSON.parse(JSON.stringify(prospects[prospectIndex]));
 }
 
 export async function getFollowUpsForProspect(prospectId: string): Promise<FollowUp[]> {
@@ -202,12 +221,10 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
     createdAt: new Date().toISOString(),
   };
   followUps.push(newFollowUp);
-  // Update prospect's nextFollowUpDate
-  const prospect = await getProspectById(followUpData.prospectId);
+  
+  const prospect = prospects.find(p => p.id === followUpData.prospectId);
   if (prospect) {
-    const prospectFollowUps = followUps.filter(fu => fu.prospectId === prospect.id && fu.status === 'Pending')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    await updateProspect(prospect.id, { nextFollowUpDate: prospectFollowUps.length > 0 ? prospectFollowUps[0].date : undefined });
+    await ensureProspectDetails(prospect); // This will update nextFollowUpDate
   }
   return JSON.parse(JSON.stringify(newFollowUp));
 }
@@ -223,12 +240,9 @@ export async function updateFollowUp(id: string, updates: Partial<Omit<FollowUp,
     updateGamificationOnFollowUpComplete(originalFollowUp, followUps[followUpIndex]);
   }
   
-  // Update prospect's nextFollowUpDate if status changed or date changed
-  const prospect = await getProspectById(originalFollowUp.prospectId);
-   if (prospect && (updates.status || updates.date)) {
-    const prospectFollowUps = followUps.filter(fu => fu.prospectId === prospect.id && fu.status === 'Pending')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    await updateProspect(prospect.id, { nextFollowUpDate: prospectFollowUps.length > 0 ? prospectFollowUps[0].date : undefined });
+  const prospect = prospects.find(p => p.id === originalFollowUp.prospectId);
+   if (prospect) {
+    await ensureProspectDetails(prospect); // This will update nextFollowUpDate
   }
 
   return JSON.parse(JSON.stringify(followUps[followUpIndex]));
@@ -236,7 +250,7 @@ export async function updateFollowUp(id: string, updates: Partial<Omit<FollowUp,
 
 
 export async function addInteraction(prospectId: string, interactionData: Omit<Interaction, 'id'>): Promise<Interaction> {
-  const prospect = await getProspectById(prospectId);
+  const prospect = prospects.find(p => p.id === prospectId);
   if (!prospect) throw new Error('Prospect not found');
 
   const newId = String(prospect.interactionHistory.length + 1 + Date.now());
@@ -245,8 +259,9 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
     id: newId,
   };
   
-  const updatedInteractions = [...prospect.interactionHistory, newInteraction];
-  await updateProspect(prospectId, { interactionHistory: updatedInteractions, lastContactedDate: interactionData.date });
+  prospect.interactionHistory.push(newInteraction);
+  prospect.lastContactedDate = interactionData.date;
+  prospect.updatedAt = new Date().toISOString();
   
   return JSON.parse(JSON.stringify(newInteraction));
 }
@@ -264,11 +279,10 @@ export function getGamificationStats(): GamificationStats {
   
   const parsedStats = stats ? JSON.parse(stats) : defaultStats;
 
-  // Reset daily prospects if date changed
   const todayStr = new Date().toISOString().split('T')[0];
   if (parsedStats.lastProspectAddedDate !== todayStr) {
     parsedStats.dailyProspectsAdded = 0;
-    parsedStats.lastProspectAddedDate = todayStr; // this will be saved by the caller
+    // lastProspectAddedDate will be updated when a prospect is actually added.
   }
   return parsedStats;
 }
@@ -282,35 +296,36 @@ function updateGamificationOnAddProspect() {
   if (typeof window === 'undefined') return;
   const stats = getGamificationStats();
   const todayStr = new Date().toISOString().split('T')[0];
+  
+  // If it's a new day, reset dailyProspectsAdded before incrementing
   if (stats.lastProspectAddedDate !== todayStr) {
-    stats.dailyProspectsAdded = 1;
-    stats.lastProspectAddedDate = todayStr;
-  } else {
-    stats.dailyProspectsAdded += 1;
+    stats.dailyProspectsAdded = 0; 
   }
+  stats.dailyProspectsAdded += 1;
+  stats.lastProspectAddedDate = todayStr;
   saveGamificationStats(stats);
 }
 
 function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, updatedFollowUp: FollowUp) {
   if (typeof window === 'undefined') return;
-  if (updatedFollowUp.status === 'Completed') {
-    const stats = getGamificationStats();
-    const scheduledDate = new Date(originalFollowUp.date + 'T' + originalFollowUp.time);
-    const completedDate = new Date(); // Assume completion is 'now'
+  const stats = getGamificationStats();
+  const scheduledDate = new Date(originalFollowUp.date + 'T' + originalFollowUp.time);
+  const completedDate = new Date(); 
 
-    // Consider on-time if completed on the same day or earlier
+  if (updatedFollowUp.status === 'Completed') {
     if (completedDate.toISOString().split('T')[0] <= scheduledDate.toISOString().split('T')[0]) {
-      stats.followUpStreak += 1;
       stats.totalOnTimeFollowUps += 1;
-    } else {
-      stats.followUpStreak = 0; // Reset streak if late
-      stats.totalMissedFollowUps +=1; // Or count as missed if significantly late
+      // Logic for streak: needs to check if the last follow-up was on the previous day and on time.
+      // This is a simplified version. For a robust streak, more state about last follow-up date is needed.
+      stats.followUpStreak += 1; 
+    } else { // Completed late
+      stats.totalMissedFollowUps += 1; // Or a new category "lateFollowUps"
+      stats.followUpStreak = 0;
     }
-    saveGamificationStats(stats);
   } else if (updatedFollowUp.status === 'Missed') {
-    const stats = getGamificationStats();
-    stats.followUpStreak = 0;
     stats.totalMissedFollowUps += 1;
-    saveGamificationStats(stats);
+    stats.followUpStreak = 0;
   }
+  saveGamificationStats(stats);
 }
+    
