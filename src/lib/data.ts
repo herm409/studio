@@ -88,7 +88,7 @@ interface EnsureProspectDetailsInput {
   followUpStageNumber: number;
   currentFunnelStage: FunnelStageType;
   initialData: string;
-  id?: string;
+  id?: string; // Prospect ID
   colorCode?: string;
   colorCodeReasoning?: string;
 }
@@ -96,17 +96,20 @@ interface EnsureProspectDetailsInput {
 async function ensureProspectDetails(prospectData: EnsureProspectDetailsInput): Promise<Partial<Pick<Prospect, 'colorCode' | 'colorCodeReasoning'>>> {
   let updatedDetails: Partial<Pick<Prospect, 'colorCode' | 'colorCodeReasoning'>> = {};
 
+  // Regenerate color code if it's missing, the default placeholder, or reasoning is missing,
+  // AND we have the necessary info (name, stage number).
   if ((!prospectData.colorCode || prospectData.colorCode === '#CCCCCC' || !prospectData.colorCodeReasoning) && prospectData.name && prospectData.followUpStageNumber) {
     try {
       const colorResult = await genAIColorCodeProspect({ stage: prospectData.followUpStageNumber, prospectName: prospectData.name });
       updatedDetails.colorCode = colorResult.colorCode;
       updatedDetails.colorCodeReasoning = colorResult.reasoning;
     } catch (error) {
-      console.error(`Error generating color code for prospect ${prospectData.name}:`, error);
-      updatedDetails.colorCode = '#DDDDDD'; 
+      console.error(`Error generating color code for prospect ${prospectData.name || prospectData.id}:`, error);
+      updatedDetails.colorCode = '#DDDDDD'; // Use a different default on error to distinguish
       updatedDetails.colorCodeReasoning = 'Failed to generate color code due to an error.';
     }
   } else if (!prospectData.colorCode) {
+    // Fallback if regeneration conditions aren't met but color code is still missing.
     updatedDetails.colorCode = '#CCCCCC'; 
     updatedDetails.colorCodeReasoning = 'Default color code assigned as no specific conditions met for AI generation.';
   }
@@ -125,7 +128,7 @@ async function calculateNextFollowUpDate(prospectId: string, userId: string): Pr
   const followUpsSnapshot = await getDocs(followUpsQuery);
   if (!followUpsSnapshot.empty) {
     const nextFollowUp = followUpsSnapshot.docs[0].data() as FollowUp;
-    return nextFollowUp.date; 
+    return nextFollowUp.date; // "YYYY-MM-DD"
   }
   return undefined;
 }
@@ -146,7 +149,7 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (typeof (rawLCD as any).toDate === 'function') { // Duck typing for Timestamp
+        } else if (rawLCD && typeof (rawLCD as Timestamp).toDate === 'function') { // Duck typing
             lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
@@ -156,8 +159,8 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD;
-        } else if (typeof (rawNFD as any).toDate === 'function') { // Duck typing for Timestamp
-            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString();
+        } else if (rawNFD && typeof (rawNFD as Timestamp).toDate === 'function') { // Duck typing
+            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0]; // Ensure YYYY-MM-DD
         }
     }
     
@@ -217,7 +220,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (typeof (rawLCD as any).toDate === 'function') { // Duck typing for Timestamp
+        } else if (rawLCD && typeof (rawLCD as Timestamp).toDate === 'function') { // Duck typing
             lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
@@ -227,8 +230,8 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD;
-        } else if (typeof (rawNFD as any).toDate === 'function') { // Duck typing for Timestamp
-            nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString();
+        } else if (rawNFD && typeof (rawNFD as Timestamp).toDate === 'function') { // Duck typing
+             nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0]; // Ensure YYYY-MM-DD
         }
     }
 
@@ -346,15 +349,18 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     }
   }
   
-  
-  if (updates.followUpStageNumber && updates.followUpStageNumber !== originalProspectData.followUpStageNumber) {
+  if (updates.followUpStageNumber && updates.followUpStageNumber !== originalProspectData.followUpStageNumber ||
+      (updates.name && updates.name !== originalProspectData.name) || // Also check if name changed for color code regen
+      (!updatesForFirestore.colorCode && originalProspectData.colorCode === '#CCCCCC') // If color code is default, try to regen
+     ) {
     const aiDetails = await ensureProspectDetails({
+      id: id,
       name: updates.name || originalProspectData.name,
-      followUpStageNumber: updates.followUpStageNumber,
+      followUpStageNumber: updates.followUpStageNumber || originalProspectData.followUpStageNumber,
       currentFunnelStage: updates.currentFunnelStage || originalProspectData.currentFunnelStage,
       initialData: updates.initialData || originalProspectData.initialData,
-      colorCode: originalProspectData.colorCode, 
-      colorCodeReasoning: originalProspectData.colorCodeReasoning, 
+      colorCode: updatesForFirestore.colorCode || originalProspectData.colorCode, 
+      colorCodeReasoning: updatesForFirestore.colorCodeReasoning || originalProspectData.colorCodeReasoning, 
       userId,
     });
     Object.assign(updatesForFirestore, aiDetails); 
@@ -364,11 +370,11 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
   
   let currentStoredNextFollowUp: string | undefined = undefined;
-  const rawNFD = originalProspectData.nextFollowUpDate; // Using original data from Firestore
+  const rawNFD = (await getDoc(prospectDocRef)).data()?.nextFollowUpDate; // Re-fetch prospect data after initial update
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             currentStoredNextFollowUp = rawNFD.split('T')[0]; // Ensure YYYY-MM-DD
-        } else if (typeof (rawNFD as any).toDate === 'function') {
+        } else if (rawNFD && typeof (rawNFD as Timestamp).toDate === 'function') {
             currentStoredNextFollowUp = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
         }
     }
@@ -504,7 +510,7 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
   const updatesForFirestore: { [key: string]: any } = { ...updates, updatedAt: Timestamp.now() };
   await updateDoc(followUpDocRef, updatesForFirestore);
 
-   const originalFollowUpForGamification: FollowUp = {
+  const originalFollowUpForGamification: FollowUp = {
     id: followUpSnap.id,
     ...originalFollowUpData,
     createdAt: (originalFollowUpData.createdAt as Timestamp | undefined)?.toDate().toISOString(),
@@ -519,13 +525,52 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
 
   if (updates.status && updates.status !== 'Pending' && originalFollowUpForGamification.status === 'Pending') {
      updateGamificationOnFollowUpComplete(originalFollowUpForGamification, updatedFollowUpForGamification);
+
+     // Increment prospect's followUpStageNumber if follow-up is 'Completed'
+     if (updatedFollowUpForGamification.status === 'Completed') {
+        const prospectDocToUpdateRef = doc(db, PROSPECTS_COLLECTION, originalFollowUpData.prospectId);
+        const prospectSnapToUpdate = await getDoc(prospectDocToUpdateRef);
+
+        if (prospectSnapToUpdate.exists() && prospectSnapToUpdate.data().userId === userId) {
+            const prospectDataToUpdate = prospectSnapToUpdate.data() as ProspectDocData;
+            let newFollowUpStageNumber = (prospectDataToUpdate.followUpStageNumber || 0) + 1;
+            if (newFollowUpStageNumber > 12) {
+                newFollowUpStageNumber = 12;
+            }
+
+            const prospectUpdatesForCounter: { [key: string]: any } = {
+                followUpStageNumber: newFollowUpStageNumber,
+                updatedAt: Timestamp.now(),
+            };
+
+            const aiColorDetails = await ensureProspectDetails({
+                id: prospectSnapToUpdate.id,
+                name: prospectDataToUpdate.name,
+                followUpStageNumber: newFollowUpStageNumber,
+                currentFunnelStage: prospectDataToUpdate.currentFunnelStage,
+                initialData: prospectDataToUpdate.initialData,
+                colorCode: prospectDataToUpdate.colorCode,
+                colorCodeReasoning: prospectDataToUpdate.colorCodeReasoning,
+                userId,
+            });
+
+            if (aiColorDetails.colorCode) {
+                prospectUpdatesForCounter.colorCode = aiColorDetails.colorCode;
+            }
+            if (aiColorDetails.colorCodeReasoning) {
+                prospectUpdatesForCounter.colorCodeReasoning = aiColorDetails.colorCodeReasoning;
+            }
+            
+            await updateDoc(prospectDocToUpdateRef, prospectUpdatesForCounter);
+        }
+     }
   }
 
   const prospectDocRef = doc(db, PROSPECTS_COLLECTION, originalFollowUpData.prospectId);
   const nextFollowUpDate = await calculateNextFollowUpDate(originalFollowUpData.prospectId, userId);
   await updateDoc(prospectDocRef, {
       nextFollowUpDate: nextFollowUpDate || deleteField(),
-      updatedAt: Timestamp.now()
+      updatedAt: Timestamp.now() // Ensure prospect's updatedAt is touched
     });
 
   const updatedSnap = await getDoc(followUpDocRef);
