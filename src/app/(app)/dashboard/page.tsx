@@ -112,9 +112,10 @@ Any tips for improvement?`;
           </CardHeader>
           <CardContent>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-              <li>Reach out to 2 "cold" prospects.</li>
-              <li>Prepare materials for upcoming demos.</li>
-              <li>Review notes for 3 "warm" leads.</li>
+              <li>Review your <strong>Dashboard</strong> for upcoming and overdue follow-ups.</li>
+              <li>Advance a prospect: Try moving someone from 'Pique Interest' to 'Full Presentation' or from 'Presentation' to an 'Expert Call'.</li>
+              <li>Check your <strong>Prospect List</strong> for anyone missing a <code>Next Follow-Up Date</code> and schedule one.</li>
+              <li>Engage a 'fresh' prospect (low <code>Follow-Up Stage Number</code>) today.</li>
             </ul>
           </CardContent>
         </Card>
