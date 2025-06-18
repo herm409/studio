@@ -267,11 +267,26 @@ export async function getFollowUpsForProspect(prospectId: string): Promise<Follo
     orderBy('date', 'asc')
   );
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(docSnap => ({
+  return querySnapshot.docs.map(docSnap => {
+    const data = docSnap.data();
+    const createdAtTimestamp = data.createdAt as Timestamp | undefined;
+    // Fallback to epoch if createdAt is missing, though new follow-ups should always have it.
+    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : new Date(0).toISOString(); 
+    return {
       id: docSnap.id,
-      ...docSnap.data(),
-      createdAt: (docSnap.data().createdAt as Timestamp).toDate().toISOString(),
-    })) as FollowUp[];
+      userId: data.userId,
+      prospectId: data.prospectId,
+      date: data.date,
+      time: data.time,
+      method: data.method,
+      notes: data.notes,
+      status: data.status,
+      aiSuggestedTone: data.aiSuggestedTone,
+      aiSuggestedContent: data.aiSuggestedContent,
+      aiSuggestedTool: data.aiSuggestedTool,
+      createdAt: createdAtString,
+    } as FollowUp;
+  });
 }
 
 export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]> {
@@ -294,11 +309,26 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   );
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(docSnap => ({
+  return querySnapshot.docs.map(docSnap => {
+    const data = docSnap.data();
+    const createdAtTimestamp = data.createdAt as Timestamp | undefined;
+    // Fallback to epoch if createdAt is missing, though new follow-ups should always have it.
+    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : new Date(0).toISOString();
+    return {
       id: docSnap.id,
-      ...docSnap.data(),
-      createdAt: (docSnap.data().createdAt as Timestamp).toDate().toISOString(),
-    })) as FollowUp[];
+      userId: data.userId,
+      prospectId: data.prospectId,
+      date: data.date,
+      time: data.time,
+      method: data.method,
+      notes: data.notes,
+      status: data.status,
+      aiSuggestedTone: data.aiSuggestedTone,
+      aiSuggestedContent: data.aiSuggestedContent,
+      aiSuggestedTool: data.aiSuggestedTool,
+      createdAt: createdAtString,
+    } as FollowUp;
+  });
 }
 
 export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt' | 'userId'>): Promise<FollowUp> {
@@ -309,7 +339,7 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
   const newFollowUpData = {
     ...followUpData,
     userId,
-    createdAt: now,
+    createdAt: now, // Firestore Timestamp
   };
   const docRef = await addDoc(collection(db, FOLLOW_UPS_COLLECTION), newFollowUpData);
 
@@ -321,9 +351,10 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
     });
 
   return {
-    ...newFollowUpData,
+    ...followUpData, // Contains all original fields except id, createdAt, userId
     id: docRef.id,
-    createdAt: now.toDate().toISOString(),
+    userId,
+    createdAt: now.toDate().toISOString(), // Convert to ISO string for return type
   } as FollowUp;
 }
 
@@ -338,25 +369,40 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
     throw new Error("Follow-up not found or unauthorized");
   }
 
-  const originalFollowUp = followUpSnap.data() as FollowUp;
+  const originalFollowUpData = followUpSnap.data()!; // Assert data exists
   await updateDoc(followUpDocRef, updates);
 
-  if (updates.status && updates.status !== 'Pending' && originalFollowUp.status === 'Pending') {
-    updateGamificationOnFollowUpComplete(originalFollowUp, { ...originalFollowUp, ...updates });
+   // Construct the original and updated FollowUp objects for gamification logic
+   const originalFollowUpForGamification: FollowUp = {
+    id: followUpSnap.id,
+    ...originalFollowUpData,
+    createdAt: (originalFollowUpData.createdAt as Timestamp | undefined)?.toDate().toISOString() || new Date(0).toISOString(),
+  } as FollowUp;
+
+  const updatedFollowUpForGamification: FollowUp = {
+    ...originalFollowUpForGamification,
+    ...updates, // Apply updates
+  };
+
+
+  if (updates.status && updates.status !== 'Pending' && originalFollowUpForGamification.status === 'Pending') {
+     updateGamificationOnFollowUpComplete(originalFollowUpForGamification, updatedFollowUpForGamification);
   }
 
-  const prospectDocRef = doc(db, PROSPECTS_COLLECTION, originalFollowUp.prospectId);
-  const nextFollowUpDate = await calculateNextFollowUpDate(originalFollowUp.prospectId, userId);
+
+  const prospectDocRef = doc(db, PROSPECTS_COLLECTION, originalFollowUpData.prospectId);
+  const nextFollowUpDate = await calculateNextFollowUpDate(originalFollowUpData.prospectId, userId);
   await updateDoc(prospectDocRef, {
       nextFollowUpDate: nextFollowUpDate || deleteField(),
       updatedAt: Timestamp.now()
     });
 
   const updatedSnap = await getDoc(followUpDocRef);
+  const finalData = updatedSnap.data()!;
   return {
       id: updatedSnap.id,
-      ...updatedSnap.data(),
-      createdAt: (updatedSnap.data()!.createdAt as Timestamp).toDate().toISOString(),
+      ...finalData,
+      createdAt: (finalData.createdAt as Timestamp | undefined)?.toDate().toISOString() || new Date(0).toISOString(),
     } as FollowUp;
 }
 
@@ -502,4 +548,3 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
-

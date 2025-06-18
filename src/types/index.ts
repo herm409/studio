@@ -25,7 +25,7 @@ export interface FollowUp {
   aiSuggestedTone?: string;
   aiSuggestedContent?: string;
   aiSuggestedTool?: string;
-  createdAt: string; // ISO string
+  createdAt?: string; // ISO string, made optional
 }
 
 export interface Prospect {
@@ -56,4 +56,3 @@ export interface GamificationStats {
   totalMissedFollowUps: number;
   lastFollowUpActivityDate: string | null; // YYYY-MM-DD, to help with streak logic
 }
-
