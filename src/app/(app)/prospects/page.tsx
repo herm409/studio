@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge"; // Added import for Badge
 import { PlusCircle, ArrowRight, Mail, Phone, CalendarDays, Search, Filter, SortAsc, SortDesc, MessageSquareText, AlertTriangle, Info } from "lucide-react";
 import Link from "next/link";
 import { FunnelProgress } from "@/components/shared/FunnelProgress";
 import { ColorCodedIndicator } from "@/components/shared/ColorCodedIndicator";
-import { format, parseISO, isPast, isValid } from 'date-fns';
+import { format, parseISO, isPast, isValid, isToday } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -57,7 +58,7 @@ export default function ProspectsPage() {
     if (searchTerm) {
       prospects = prospects.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         p.initialData.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -67,13 +68,12 @@ export default function ProspectsPage() {
       prospects = prospects.filter(p => {
         if (!p.nextFollowUpDate) return false;
         const nextFollowUp = parseISO(p.nextFollowUpDate);
-        // Assuming nextFollowUpDate is for a 'Pending' task. If it's past, it's overdue.
-        return isValid(nextFollowUp) && isPast(nextFollowUp) && !isToday(nextFollowUp); // Added !isToday to avoid marking today's tasks as overdue
+        return isValid(nextFollowUp) && isPast(nextFollowUp) && !isToday(nextFollowUp); 
       });
     }
     
     // Filter: Stage Number
-    if (filterStage && filterStage !== "all") { // Updated condition to check for "all"
+    if (filterStage && filterStage !== "all") { 
         const stageNum = parseInt(filterStage, 10);
         prospects = prospects.filter(p => p.followUpStageNumber === stageNum);
     }
@@ -83,20 +83,32 @@ export default function ProspectsPage() {
       switch (sortOption) {
         case "name-asc": return a.name.localeCompare(b.name);
         case "name-desc": return b.name.localeCompare(a.name);
-        case "nextFollowUp-asc":
-          if (!a.nextFollowUpDate) return 1; if (!b.nextFollowUpDate) return -1;
-          return parseISO(a.nextFollowUpDate).getTime() - parseISO(b.nextFollowUpDate).getTime();
-        case "nextFollowUp-desc":
-          if (!a.nextFollowUpDate) return 1; if (!b.nextFollowUpDate) return -1;
-          return parseISO(b.nextFollowUpDate).getTime() - parseISO(a.nextFollowUpDate).getTime();
+        case "nextFollowUp-asc": {
+          const dateA = a.nextFollowUpDate ? parseISO(a.nextFollowUpDate).getTime() : Infinity;
+          const dateB = b.nextFollowUpDate ? parseISO(b.nextFollowUpDate).getTime() : Infinity;
+          if (dateA === Infinity && dateB === Infinity) return 0;
+          return dateA - dateB;
+        }
+        case "nextFollowUp-desc": {
+          const dateA = a.nextFollowUpDate ? parseISO(a.nextFollowUpDate).getTime() : -Infinity;
+          const dateB = b.nextFollowUpDate ? parseISO(b.nextFollowUpDate).getTime() : -Infinity;
+          if (dateA === -Infinity && dateB === -Infinity) return 0;
+          return dateB - dateA;
+        }
         case "stage-asc": return a.followUpStageNumber - b.followUpStageNumber;
         case "stage-desc": return b.followUpStageNumber - a.followUpStageNumber;
-        case "lastContacted-asc":
-          if (!a.lastContactedDate) return 1; if (!b.lastContactedDate) return -1;
-          return parseISO(a.lastContactedDate).getTime() - parseISO(b.lastContactedDate).getTime();
-        case "lastContacted-desc":
-          if (!a.lastContactedDate) return 1; if (!b.lastContactedDate) return -1;
-          return parseISO(b.lastContactedDate).getTime() - parseISO(a.lastContactedDate).getTime();
+        case "lastContacted-asc": {
+          const dateA = a.lastContactedDate ? parseISO(a.lastContactedDate).getTime() : Infinity;
+          const dateB = b.lastContactedDate ? parseISO(b.lastContactedDate).getTime() : Infinity;
+          if (dateA === Infinity && dateB === Infinity) return 0;
+          return dateA - dateB;
+        }
+        case "lastContacted-desc": {
+          const dateA = a.lastContactedDate ? parseISO(a.lastContactedDate).getTime() : -Infinity;
+          const dateB = b.lastContactedDate ? parseISO(b.lastContactedDate).getTime() : -Infinity;
+          if (dateA === -Infinity && dateB === -Infinity) return 0;
+          return dateB - dateA;
+        }
         default: return 0;
       }
     });
@@ -288,4 +300,3 @@ export default function ProspectsPage() {
     </div>
   );
 }
-
