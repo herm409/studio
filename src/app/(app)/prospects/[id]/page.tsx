@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PlusCircle, Loader2, Bot, MessageCircle, Users2, Video, ExternalLink, Phone, Presentation, MessageSquareText } from "lucide-react";
+import { CalendarIcon, PlusCircle, Loader2, Bot, MessageCircle, Users2, Video, ExternalLink, Phone, Presentation, MessageSquareText, ListChecks } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { ProspectDetailCard } from '@/components/prospects/ProspectDetailCard';
@@ -66,8 +66,6 @@ export default function ProspectDetailPage() {
   const prospectId = params.id as string;
 
   const [prospect, setProspect] = useState<Prospect | null>(null);
-  // Interactions are now part of prospect object after fetch
-  // const [interactions, setInteractions] = useState<Interaction[]>([]); 
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -78,8 +76,11 @@ export default function ProspectDetailPage() {
   const [aiToneSuggestion, setAiToneSuggestion] = useState<SuggestFollowUpMessageOutput | null>(null);
   const [isToneLoading, setIsToneLoading] = useState(false);
   const [prospectObjections, setProspectObjections] = useState<string>('');
+
   const [aiScheduleSuggestion, setAiScheduleSuggestion] = useState<ScheduleFollowUpOutput | null>(null);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
+  const [isApplyingScheduleLoading, setIsApplyingScheduleLoading] = useState(false);
+
   const [aiToolSuggestions, setAiToolSuggestions] = useState<SuggestToolsOutput | null>(null);
   const [isToolsLoading, setIsToolsLoading] = useState(false);
 
@@ -87,22 +88,21 @@ export default function ProspectDetailPage() {
   const followUpForm = useForm<FollowUpFormData>({ resolver: zodResolver(followUpSchema), defaultValues: { method: 'Email', time: '10:00', notes: '' } });
 
   useEffect(() => {
-    if (prospectId && user) { // Ensure user is available for data fetching
+    if (prospectId && user) { 
       fetchProspectData();
     }
-  }, [prospectId, user]); // Add user to dependency array
+  }, [prospectId, user]); 
   
   const fetchProspectData = async () => {
-    if (!user) return; // Should be handled by AuthenticatedLayout, but good for safety
+    if (!user) return; 
     setIsLoading(true);
     try {
       const [pData, fuData] = await Promise.all([
-        getProspectById(prospectId), // Assumes getProspectById is adapted for Firebase and userId
-        getFollowUpsForProspect(prospectId) // Assumes this is also adapted
+        getProspectById(prospectId), 
+        getFollowUpsForProspect(prospectId) 
       ]);
       if (pData) {
         setProspect(pData);
-        // Interactions are now part of pData.interactionHistory
         setFollowUps(fuData.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime() ));
       } else {
         toast({ title: "Error", description: "Prospect not found or not authorized.", variant: "destructive" });
@@ -118,8 +118,6 @@ export default function ProspectDetailPage() {
   const handleAddInteraction = async (data: InteractionFormData) => {
     if (!prospect || !user) return;
     try {
-      // serverAddInteraction now takes prospectId and interaction data
-      // userId is handled within serverAddInteraction using useAuth or passed if needed
       await serverAddInteraction(prospect.id, { ...data, date: new Date().toISOString() });
       toast({ title: "Success", description: "Interaction logged." });
       fetchProspectData(); 
@@ -132,7 +130,6 @@ export default function ProspectDetailPage() {
   
   const handleSaveFollowUp = async (data: FollowUpFormData) => {
     if (!prospect || !user) return;
-    // userId handled by serverAddFollowUp/serverUpdateFollowUp
     const followUpPayload = {
       prospectId: prospect.id,
       method: data.method,
@@ -181,7 +178,7 @@ export default function ProspectDetailPage() {
 
   const handleFollowUpStatusChange = async (followUpId: string, status: FollowUp['status']) => {
     try {
-      await serverUpdateFollowUp(followUpId, { status }); // userId handled by serverUpdateFollowUp
+      await serverUpdateFollowUp(followUpId, { status }); 
       toast({ title: "Success", description: `Follow-up marked as ${status}.` });
       fetchProspectData();
     } catch (error: any) {
@@ -193,7 +190,6 @@ export default function ProspectDetailPage() {
     if (!prospect) return;
     setIsToneLoading(true);
     try {
-      // Determine follow-up number based on completed follow-ups for this prospect
       const completedFollowUpsCount = followUps.filter(f => f.status === 'Completed').length;
       const result = await suggestFollowUpMessage({
         prospectData: prospect.initialData,
@@ -214,6 +210,7 @@ export default function ProspectDetailPage() {
   const generateScheduleSuggestion = async () => {
     if (!prospect) return;
     setIsScheduleLoading(true);
+    setAiScheduleSuggestion(null); // Clear previous suggestions
     try {
       const today = new Date();
       const currentDateFormatted = format(today, "yyyy-MM-dd");
@@ -230,6 +227,47 @@ export default function ProspectDetailPage() {
       toast({ title: "AI Error", description: error.message || "Failed to get schedule suggestion.", variant: "destructive" });
     } finally {
       setIsScheduleLoading(false);
+    }
+  };
+
+  const handleApplySchedule = async () => {
+    if (!prospect || !aiScheduleSuggestion || !aiScheduleSuggestion.followUpSchedule || aiScheduleSuggestion.followUpSchedule.length === 0) return;
+    setIsApplyingScheduleLoading(true);
+    try {
+      let allAddedSuccessfully = true;
+      let addedCount = 0;
+      for (const suggestedFu of aiScheduleSuggestion.followUpSchedule) {
+        try {
+          await serverAddFollowUp({
+            prospectId: prospect.id,
+            method: suggestedFu.method as 'Email' | 'Call' | 'In-Person', // Type assertion based on Zod schema
+            date: suggestedFu.date, // Already YYYY-MM-DD string
+            time: suggestedFu.time,
+            notes: suggestedFu.notes,
+            status: 'Pending',
+          });
+          addedCount++;
+        } catch (singleError) {
+          allAddedSuccessfully = false;
+          console.error("Failed to add one of the suggested follow-ups:", singleError);
+          toast({ title: "Error Adding Follow-up", description: `Could not add follow-up for ${suggestedFu.date}.`, variant: "destructive", duration: 5000 });
+        }
+      }
+
+      if (addedCount > 0 && allAddedSuccessfully) {
+        toast({ title: "Success", description: "AI suggested schedule applied. All follow-ups added." });
+      } else if (addedCount > 0 && !allAddedSuccessfully) {
+        toast({ title: "Partial Success", description: `${addedCount} follow-ups were added. Some failed. Check console.`, variant: "default" });
+      } else if (addedCount === 0 && !allAddedSuccessfully) {
+         toast({ title: "Error", description: "Could not apply any of the AI suggested follow-ups.", variant: "destructive" });
+      }
+      
+      fetchProspectData(); // Refresh data to show new follow-ups
+      setAiScheduleSuggestion(null); // Clear the suggestion from UI
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to apply AI schedule.", variant: "destructive" });
+    } finally {
+      setIsApplyingScheduleLoading(false);
     }
   };
 
@@ -251,7 +289,6 @@ export default function ProspectDetailPage() {
     }
   };
   
-  // Interactions are now directly on prospect object
   const sortedInteractions = useMemo(() => 
     prospect?.interactionHistory?.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() ) || [], 
   [prospect?.interactionHistory]);
@@ -302,11 +339,30 @@ export default function ProspectDetailPage() {
           description="Let AI suggest an optimal follow-up schedule."
           buttonText="Suggest Schedule"
           onGenerate={generateScheduleSuggestion}
-          isLoading={isScheduleLoading}
+          isLoading={isScheduleLoading || isApplyingScheduleLoading}
           suggestionResult={aiScheduleSuggestion && (
             <>
-              <p><strong>Schedule:</strong> <em className="whitespace-pre-wrap">{aiScheduleSuggestion.followUpSchedule}</em></p>
-              <p><strong>Reasoning:</strong> <em className="whitespace-pre-wrap">{aiScheduleSuggestion.reasoning}</em></p>
+              <p className="font-semibold mb-1">Suggested Follow-ups:</p>
+              <ul className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
+                {aiScheduleSuggestion.followUpSchedule.map((fu, idx) => (
+                  <li key={idx} className="p-2 border rounded-md bg-background/70">
+                    <div className="font-medium">{format(parseISO(fu.date), "MMM d, yyyy")} at {fu.time} ({fu.method})</div>
+                    <p className="text-xs text-muted-foreground">{fu.notes}</p>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground italic"><strong>Reasoning:</strong> {aiScheduleSuggestion.reasoning}</p>
+              {aiScheduleSuggestion.followUpSchedule.length > 0 && (
+                <Button 
+                  onClick={handleApplySchedule} 
+                  disabled={isApplyingScheduleLoading || isScheduleLoading} 
+                  className="w-full mt-3"
+                  size="sm"
+                >
+                  {isApplyingScheduleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListChecks className="mr-2 h-4 w-4" />}
+                  Apply This Schedule
+                </Button>
+              )}
             </>
           )}
           icon={CalendarIcon}
@@ -328,7 +384,7 @@ export default function ProspectDetailPage() {
                     {tool.toolName} <Badge variant="secondary" className="ml-2">{tool.toolType}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">{tool.reasoning}</p>
-                  {tool.details && <p className="text-xs text-accent flex items-center"><ExternalLink className="w-3 h-3 mr-1"/> {tool.details}</p>}
+                  {tool.details && <div className="text-xs text-accent flex items-center"><ExternalLink className="w-3 h-3 mr-1"/> {tool.details}</div>}
                 </li>
               ))}
             </ul>
@@ -496,4 +552,3 @@ export default function ProspectDetailPage() {
     </div>
   );
 }
-

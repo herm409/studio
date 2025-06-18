@@ -31,11 +31,17 @@ const ScheduleFollowUpInputSchema = z.object({
 });
 export type ScheduleFollowUpInput = z.infer<typeof ScheduleFollowUpInputSchema>;
 
+const FollowUpSuggestionSchema = z.object({
+  date: z.string().describe('Suggested date for the follow-up in YYYY-MM-DD format.'),
+  time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Suggested time in HH:MM format."),
+  method: z.enum(['Email', 'Call', 'In-Person']).describe('Suggested method of follow-up. Must be one of Email, Call, or In-Person.'),
+  notes: z.string().describe('Brief suggestion for the purpose or content of this follow-up.'),
+});
+
 const ScheduleFollowUpOutputSchema = z.object({
-  followUpSchedule: z
-    .string()
+  followUpSchedule: z.array(FollowUpSuggestionSchema)
     .describe(
-      'A human-readable, natural language string describing a schedule of future follow-ups, including dates, times, and suggested content/purpose for each, optimized for conversion. This should NOT be a JSON formatted string.'
+      'A JSON array of suggested follow-up objects. Each object represents a single follow-up action.'
     ),
   reasoning: z
     .string()
@@ -70,17 +76,18 @@ const prompt = ai.definePrompt({
     - Alignment with funnel stage milestones
     - The importance of maintaining multiple touchpoints.
 
-  Output a detailed follow-up schedule consisting of multiple potential future follow-ups. For each follow-up, include specific dates, times, and a brief suggestion for its purpose or content (e.g., "a check-in call to see how they're doing", "an email sending resource X as discussed", "a message to follow up on previous discussion point Y").
+  IMPORTANT: The 'followUpSchedule' field in your output MUST be a JSON array of objects.
+  Each object in the array represents a single follow-up and MUST adhere to the following structure:
+  {
+    "date": "YYYY-MM-DD", // Suggested date for the follow-up
+    "time": "HH:MM", // Suggested time
+    "method": "Email" | "Call" | "In-Person", // Method of follow-up
+    "notes": "Brief suggestion for its purpose or content (e.g., 'a check-in call to see how they\\'re doing', 'an email sending resource X as discussed')"
+  }
   
-  IMPORTANT: The 'followUpSchedule' field in your output MUST be a single, human-readable string that describes this schedule in natural language. Do NOT format this field as a JSON array or object.
-  For example, the 'followUpSchedule' could be:
-  'First, on 2024-07-16 (Tuesday) around 10:00 AM, send a personalized email referencing our last conversation and offer a new resource.
-  Next, on 2024-07-19 (Friday) around 2:30 PM, make a brief check-in call to see if they had any questions about the resource.
-  Then, on 2024-07-23 (Tuesday), schedule a follow-up email to summarize any discussion and propose next steps.'
-
   Do NOT suggest specific 3rd party tools for these follow-ups; focus on the communication itself and planning multiple interactions.
   All suggested follow-up dates and times in the schedule MUST be in the future, relative to {{{currentDate}}}. Do not suggest past dates or times.
-  For example, if today ({{{currentDate}}}) is 2024-07-15 (Monday), "tomorrow" would be 2024-07-16 (Tuesday). Ensure days of the week in your suggestions align with the actual dates.
+  For example, if today ({{{currentDate}}}) is 2024-07-15 (Monday), "tomorrow" would be 2024-07-16 (Tuesday). Ensure days of the week in your suggestions align with the actual dates if you mention them in the notes.
   Also, provide a reasoning for how the follow-up schedule was determined.
   Follow the output schema exactly for all fields.
   `,
@@ -97,4 +104,3 @@ const scheduleFollowUpFlow = ai.defineFlow(
     return output!;
   }
 );
-
