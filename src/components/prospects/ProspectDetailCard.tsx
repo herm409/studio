@@ -36,7 +36,7 @@ export function ProspectDetailCard({ prospect }: ProspectDetailCardProps) {
             </div>
           </div>
           <Button variant="outline" asChild className="w-full md:w-auto shrink-0">
-            <Link href={`/prospects/${prospect.id}/edit`}> {/* Assuming an edit page route */}
+            <Link href={`/prospects/${prospect.id}/edit`}>
               <Edit className="mr-2 h-4 w-4" /> Edit Prospect
             </Link>
           </Button>
@@ -44,14 +44,14 @@ export function ProspectDetailCard({ prospect }: ProspectDetailCardProps) {
       </CardHeader>
       <CardContent className="pt-6 grid gap-6">
         <div>
-          <h3 className="text-lg font-semibold mb-2 font-headline">Funnel Stage</h3>
+          <h3 className="text-lg font-semibold mb-2 font-headline text-center md:text-left">Funnel Stage</h3>
           <FunnelProgress currentStage={prospect.currentFunnelStage} className="p-2 bg-secondary/50 rounded-md" />
         </div>
-        <div>
+        <div className="max-w-full overflow-x-hidden"> {/* Ensure parent doesn't cause overflow for notes */}
           <h3 className="text-lg font-semibold mb-2 font-headline">Initial Data & Notes</h3>
-          <p className="text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-md border break-words">
+          <div className="text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-md border break-words max-w-full"> {/* Added max-w-full */}
             {prospect.initialData}
-          </p>
+          </div>
         </div>
          {prospect.colorCodeReasoning && (
           <div>

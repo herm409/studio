@@ -235,26 +235,26 @@ export default function ProspectsPage() {
               <Card key={prospect.id} className={`flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 ${isOverdue ? 'border-destructive' : ''}`}>
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3 min-w-0"> {/* Added min-w-0 for the container of avatar and text */}
+                    <div className="flex items-center space-x-3 min-w-0">
                       <Avatar className="h-12 w-12 border shrink-0">
                         <AvatarImage src={prospect.avatarUrl} alt={prospect.name} data-ai-hint="person face"/>
                         <AvatarFallback>{prospect.name.charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0"> {/* Added min-w-0 here */}
+                      <div className="min-w-0">
                         <CardTitle className="text-lg font-headline break-words">{prospect.name}</CardTitle>
-                        {prospect.email && <CardDescription className="text-xs flex items-center break-words"><Mail className="w-3 h-3 mr-1 shrink-0"/>{prospect.email}</CardDescription>}
+                        {prospect.email && <CardDescription className="text-xs flex items-center break-all min-w-0"><Mail className="w-3 h-3 mr-1 shrink-0"/>{prospect.email}</CardDescription>}
                       </div>
                     </div>
                     <ColorCodedIndicator colorCode={prospect.colorCode} size="md" />
                   </div>
                   {prospect.phone && (
-                    <div className="flex items-center space-x-2 mt-2">
-                       <Button variant="outline" size="xs" asChild className="flex-1">
+                    <div className="flex flex-col space-y-2 mt-2">
+                       <Button variant="outline" size="xs" asChild className="w-full">
                             <a href={`tel:${prospect.phone}`} aria-label={`Call ${prospect.name}`}>
                                 <Phone className="w-3.5 h-3.5 mr-1.5" /> Call
                             </a>
                         </Button>
-                        <Button variant="outline" size="xs" asChild className="flex-1">
+                        <Button variant="outline" size="xs" asChild className="w-full">
                             <a href={`sms:${prospect.phone}`} aria-label={`Text ${prospect.name}`}>
                                 <MessageSquareText className="w-3.5 h-3.5 mr-1.5" /> Text
                             </a>
@@ -264,7 +264,7 @@ export default function ProspectsPage() {
                 </CardHeader>
                 <CardContent className="flex-grow space-y-3">
                   <div>
-                    <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Funnel Stage</h4>
+                    <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1 text-center sm:text-left">Funnel Stage</h4>
                     <FunnelProgress currentStage={prospect.currentFunnelStage} />
                   </div>
                   <div className="text-xs text-muted-foreground space-y-1">
