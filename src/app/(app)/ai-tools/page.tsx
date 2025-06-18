@@ -28,7 +28,7 @@ const aiFeatures = [
   {
     title: "Prospect Color Coding",
     icon: Palette,
-    description: "Automatically assigns a visual color code (e.g., green for fresh, red for ripe) to prospects based on their follow-up stage number, helping you quickly assess their status.",
+    description: "Automatically assigns a visual color code (e.g., red for fresh/not ready, green for ripe/ready) to prospects based on their follow-up stage number, helping you quickly assess their status.",
     location: "Applied on the Prospects list and Prospect Detail pages.",
     link: "/prospects",
   }

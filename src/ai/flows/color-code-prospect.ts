@@ -26,7 +26,7 @@ const ColorCodeProspectOutputSchema = z.object({
   colorCode: z
     .string()
     .describe(
-      'A hexadecimal color code (e.g., #RRGGBB) representing the follow-up stage of the prospect.  Fresh prospects should be a shade of green, ripe prospects should be a shade of red.'
+      'A hexadecimal color code (e.g., #RRGGBB) representing the follow-up stage of the prospect. Fresh prospects (stage 1) should be a shade of red, ripe prospects (stage 12) should be a shade of green.'
     ),
   reasoning: z.string().describe('The AI reasoning behind the color code assignment.'),
 });
@@ -45,12 +45,21 @@ const prompt = ai.definePrompt({
   The prospect's name is: {{{prospectName}}}.
   The prospect's stage is: {{{stage}}}.
 
-  Assign a hexadecimal color code to the prospect, considering that stage 1 is fresh and stage 12 is ripe.  Fresh prospects should be a shade of green, and ripe prospects should be a shade of red. Explain your reasoning for choosing the color.
+  Assign a hexadecimal color code to the prospect, considering that stage 1 is fresh and stage 12 is ripe.
+  Fresh prospects (stage 1) should be a shade of red to indicate they are not ready yet.
+  Ripe prospects (stage 12) should be a shade of green to indicate they are ready.
+  Explain your reasoning for choosing the color.
 
-  Example output:
+  Example output for a fresh prospect (stage 1):
   {
     "colorCode": "#FF0000",
-    "reasoning": "The prospect is at stage 12 (ripe), thus assigned a red color to indicate urgency."
+    "reasoning": "The prospect is at stage 1 (fresh), thus assigned a red color to indicate they are not yet ready for intensive follow-up."
+  }
+
+  Example output for a ripe prospect (stage 12):
+  {
+    "colorCode": "#00FF00",
+    "reasoning": "The prospect is at stage 12 (ripe), thus assigned a green color to indicate readiness for closing."
   }`,
 });
 
