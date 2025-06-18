@@ -14,7 +14,8 @@ import {
   Timestamp,
   orderBy,
   limit,
-  runTransaction
+  runTransaction,
+  setDoc // Added setDoc
 } from 'firebase/firestore';
 import { colorCodeProspect as genAIColorCodeProspect } from '@/ai/flows/color-code-prospect';
 
@@ -348,12 +349,12 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
 
 export async function getGamificationStats(): Promise<GamificationStats> {
   const userId = getCurrentUserId();
-  if (!userId) return { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0 };
+  if (!userId) return { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: undefined, lastFollowUpActivityDate: undefined };
 
   const statsDocRef = doc(db, GAMIFICATION_COLLECTION, userId);
   const docSnap = await getDoc(statsDocRef);
 
-  const defaultStats: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0 };
+  const defaultStats: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: undefined, lastFollowUpActivityDate: undefined };
   
   if (docSnap.exists()) {
     const data = docSnap.data() as GamificationStats;
@@ -361,10 +362,11 @@ export async function getGamificationStats(): Promise<GamificationStats> {
     if (data.lastProspectAddedDate !== todayStr) {
       data.dailyProspectsAdded = 0; // Reset if last add was not today
     }
-    return data;
+    // Ensure all fields from defaultStats are present
+    return { ...defaultStats, ...data };
   } else {
     // Initialize stats if not exists
-    await updateDoc(statsDocRef, defaultStats, { merge: true });
+    await setDoc(statsDocRef, defaultStats); // Use setDoc to create the document
     return defaultStats;
   }
 }
@@ -373,7 +375,8 @@ async function saveGamificationStats(stats: GamificationStats) {
   const userId = getCurrentUserId();
   if (!userId) return;
   const statsDocRef = doc(db, GAMIFICATION_COLLECTION, userId);
-  await updateDoc(statsDocRef, stats, { merge: true });
+  // Use setDoc with merge to ensure it creates if not exists, or updates if it does.
+  await setDoc(statsDocRef, stats, { merge: true });
 }
 
 async function updateGamificationOnAddProspect() {
@@ -384,10 +387,12 @@ async function updateGamificationOnAddProspect() {
   await runTransaction(db, async (transaction) => {
     const statsSnap = await transaction.get(statsDocRef);
     let currentStats: GamificationStats;
+    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0 };
+
     if (!statsSnap.exists()) {
-      currentStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0 };
+      currentStats = defaultStatsBase;
     } else {
-      currentStats = statsSnap.data() as GamificationStats;
+      currentStats = { ...defaultStatsBase, ...statsSnap.data() as GamificationStats };
     }
     
     const todayStr = new Date().toISOString().split('T')[0];
@@ -408,27 +413,31 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
   await runTransaction(db, async (transaction) => {
     const statsSnap = await transaction.get(statsDocRef);
     let currentStats: GamificationStats;
+    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0 };
+
     if (!statsSnap.exists()) {
-      currentStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0 };
+      currentStats = defaultStatsBase;
     } else {
-      currentStats = statsSnap.data() as GamificationStats;
+      currentStats = { ...defaultStatsBase, ...statsSnap.data() as GamificationStats };
     }
 
     const scheduledDate = new Date(originalFollowUp.date + 'T' + originalFollowUp.time);
     const completedDate = new Date(); 
+    const todayStr = completedDate.toISOString().split('T')[0];
 
     if (updatedFollowUp.status === 'Completed') {
-      if (completedDate.toISOString().split('T')[0] <= scheduledDate.toISOString().split('T')[0]) { // On time or early
-        currentStats.totalOnTimeFollowUps = (currentStats.totalOnTimeFollowUps || 0) + 1;
-        currentStats.followUpStreak = (currentStats.followUpStreak || 0) + 1; 
-      } else { // Late
-        currentStats.totalMissedFollowUps = (currentStats.totalMissedFollowUps || 0) + 1; 
-        currentStats.followUpStreak = 0; // Reset streak if late
+      currentStats.totalOnTimeFollowUps = (currentStats.totalOnTimeFollowUps || 0) + 1;
+      // Streak logic: increment if today is different from last activity day, or if it's the first activity
+      if (currentStats.lastFollowUpActivityDate !== todayStr) {
+        currentStats.followUpStreak = (currentStats.followUpStreak || 0) + 1;
       }
+      currentStats.lastFollowUpActivityDate = todayStr;
     } else if (updatedFollowUp.status === 'Missed') {
       currentStats.totalMissedFollowUps = (currentStats.totalMissedFollowUps || 0) + 1;
       currentStats.followUpStreak = 0; // Reset streak
+      currentStats.lastFollowUpActivityDate = todayStr; // Record activity even if missed, to prevent double penalty
     }
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
+

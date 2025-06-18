@@ -6,6 +6,7 @@ export const FunnelStages: FunnelStageType[] = ["Prospect", "Viewed Media/Presen
 export interface Interaction {
   id: string;
   userId: string; // Added for Firebase
+  prospectId: string; // Ensure prospectId is here for querying
   date: string; // ISO string
   type: 'Email' | 'Call' | 'Meeting' | 'Note' | 'Text Message';
   summary: string;
@@ -16,7 +17,7 @@ export interface FollowUp {
   id: string;
   userId: string; // Added for Firebase
   prospectId: string;
-  date: string; // ISO string
+  date: string; // ISO string "YYYY-MM-DD"
   time: string; // HH:MM
   method: 'Email' | 'Call' | 'In-Person';
   notes: string;
@@ -38,12 +39,9 @@ export interface Prospect {
   colorCode?: string; // Hex color code from GenAI
   colorCodeReasoning?: string;
   lastContactedDate?: string; // ISO string
-  nextFollowUpDate?: string; // ISO string
+  nextFollowUpDate?: string; // ISO string "YYYY-MM-DD"
   followUpStageNumber: number; // 1-12 for color coding
-  // interactionHistory and scheduledFollowUps will be subcollections or separate top-level collections in Firestore
-  // For simplicity in the client-side type, we might not always populate them directly on the Prospect object
-  // Or, if fetched, they can be populated.
-  interactionHistory: Interaction[]; // This might be fetched separately
+  interactionHistory: Interaction[]; 
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   avatarUrl?: string; // URL for placeholder or actual image
@@ -56,4 +54,6 @@ export interface GamificationStats {
   followUpStreak: number;
   totalOnTimeFollowUps: number;
   totalMissedFollowUps: number;
+  lastFollowUpActivityDate?: string; // YYYY-MM-DD, to help with streak logic
 }
+
