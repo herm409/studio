@@ -35,7 +35,7 @@ const ScheduleFollowUpOutputSchema = z.object({
   followUpSchedule: z
     .string()
     .describe(
-      'A schedule of future follow-up actions, including dates, times, and suggested content, optimized for conversion.'
+      'A schedule of future follow-ups, including dates, times, and suggested content/purpose for each, optimized for conversion.'
     ),
   reasoning: z
     .string()
@@ -70,8 +70,8 @@ const prompt = ai.definePrompt({
     - Alignment with funnel stage milestones
     - The importance of maintaining multiple touchpoints.
 
-  Output a detailed follow-up schedule consisting of multiple potential future follow-up actions. For each action, include specific dates, times, and a brief suggestion for the communication's purpose or content (e.g., "check-in call", "send resource X", "follow up on previous discussion point Y").
-  Do NOT suggest specific 3rd party tools for these follow-up actions; focus on the communication itself and planning multiple interactions.
+  Output a detailed follow-up schedule consisting of multiple potential future follow-ups. For each follow-up, include specific dates, times, and a brief suggestion for its purpose or content (e.g., "a check-in call to see how they're doing", "an email sending resource X as discussed", "a message to follow up on previous discussion point Y").
+  Do NOT suggest specific 3rd party tools for these follow-ups; focus on the communication itself and planning multiple interactions.
   All suggested follow-up dates and times in the schedule MUST be in the future, relative to {{{currentDate}}}. Do not suggest past dates or times.
   For example, if today ({{{currentDate}}}) is 2024-07-15 (Monday), "tomorrow" would be 2024-07-16 (Tuesday). Ensure days of the week in your suggestions align with the actual dates.
   Also, provide a reasoning for how the follow-up schedule was determined.
