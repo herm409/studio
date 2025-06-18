@@ -1,9 +1,11 @@
 
+"use client";
 import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, Users, CalendarDays, Settings, Trophy, Bot, GanttChartSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation"; 
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar"; // Import useSidebar
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,16 +18,23 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile, isMobile } = useSidebar(); // Get mobile state and setter
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="flex items-center justify-between p-2 h-16">
-        <Link href="/dashboard" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden" onClick={handleLinkClick}>
           <GanttChartSquare className="h-7 w-7 text-primary" />
           <span className="text-lg font-semibold font-headline">FollowUp</span>
         </Link>
         <div className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full hidden">
-           <Link href="/dashboard">
+           <Link href="/dashboard" onClick={handleLinkClick}>
              <GanttChartSquare className="h-7 w-7 text-primary" />
            </Link>
         </div>
@@ -45,7 +54,7 @@ export function AppSidebar() {
                 aria-disabled={item.disabled}
                 className={cn(item.disabled && "cursor-not-allowed opacity-50")}
               >
-                <Link href={item.disabled ? "#" : item.href}>
+                <Link href={item.disabled ? "#" : item.href} onClick={handleLinkClick}>
                   <item.icon className="h-5 w-5" />
                   <span>{item.label}</span>
                 </Link>
