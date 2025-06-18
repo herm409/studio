@@ -125,22 +125,26 @@ export async function getProspects(): Promise<Prospect[]> {
     let data = prospectDoc.data() as Omit<Prospect, 'id' | 'interactionHistory'> & { createdAt: Timestamp, updatedAt: Timestamp, lastContactedDate?: Timestamp | string, nextFollowUpDate?: Timestamp | string };
 
     let lastContactedDateValue: string | undefined = undefined;
-    if (data.lastContactedDate) {
-        if (typeof data.lastContactedDate === 'string') {
-            lastContactedDateValue = data.lastContactedDate;
-        } else if (data.lastContactedDate instanceof Timestamp) {
-            lastContactedDateValue = data.lastContactedDate.toDate().toISOString();
+    const rawLCD = data.lastContactedDate;
+    if (rawLCD) {
+        if (typeof rawLCD === 'string') {
+            lastContactedDateValue = rawLCD;
+        } else if (rawLCD && typeof rawLCD.toDate === 'function') { // Duck typing
+            lastContactedDateValue = rawLCD.toDate().toISOString();
         }
     }
 
     let nextFollowUpDateValue: string | undefined = undefined;
-    if (data.nextFollowUpDate) {
-        if (typeof data.nextFollowUpDate === 'string') {
-            nextFollowUpDateValue = data.nextFollowUpDate;
-        } else if (data.nextFollowUpDate instanceof Timestamp) {
-            nextFollowUpDateValue = data.nextFollowUpDate.toDate().toISOString();
+    const rawNFD = data.nextFollowUpDate;
+    if (rawNFD) {
+        if (typeof rawNFD === 'string') {
+            nextFollowUpDateValue = rawNFD;
+        } else if (rawNFD && typeof rawNFD.toDate === 'function') { // Duck typing
+            nextFollowUpDateValue = rawNFD.toDate().toISOString();
         }
-    } else {
+    }
+    
+    if (nextFollowUpDateValue === undefined) { // If still undefined, calculate it
         nextFollowUpDateValue = await calculateNextFollowUpDate(prospectDoc.id, userId);
     }
 
@@ -157,7 +161,7 @@ export async function getProspects(): Promise<Prospect[]> {
       colorCodeReasoning: data.colorCodeReasoning,
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
-      interactionHistory: [],
+      interactionHistory: [], // This should be populated if needed by a separate query or passed
       createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
       updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
       avatarUrl: data.avatarUrl,
@@ -192,22 +196,26 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     })) as Interaction[];
 
     let lastContactedDateValue: string | undefined = undefined;
-    if (data.lastContactedDate) {
-        if (typeof data.lastContactedDate === 'string') {
-            lastContactedDateValue = data.lastContactedDate;
-        } else if (data.lastContactedDate instanceof Timestamp) {
-            lastContactedDateValue = data.lastContactedDate.toDate().toISOString();
+    const rawLCD = data.lastContactedDate;
+    if (rawLCD) {
+        if (typeof rawLCD === 'string') {
+            lastContactedDateValue = rawLCD;
+        } else if (rawLCD && typeof rawLCD.toDate === 'function') { // Duck typing
+            lastContactedDateValue = rawLCD.toDate().toISOString();
         }
     }
 
     let nextFollowUpDateValue: string | undefined = undefined;
-    if (data.nextFollowUpDate) {
-        if (typeof data.nextFollowUpDate === 'string') {
-            nextFollowUpDateValue = data.nextFollowUpDate;
-        } else if (data.nextFollowUpDate instanceof Timestamp) {
-            nextFollowUpDateValue = data.nextFollowUpDate.toDate().toISOString();
+    const rawNFD = data.nextFollowUpDate;
+    if (rawNFD) {
+        if (typeof rawNFD === 'string') {
+            nextFollowUpDateValue = rawNFD;
+        } else if (rawNFD && typeof rawNFD.toDate === 'function') { // Duck typing
+            nextFollowUpDateValue = rawNFD.toDate().toISOString();
         }
-    } else {
+    }
+
+    if (nextFollowUpDateValue === undefined) { // If still undefined, calculate it
         nextFollowUpDateValue = await calculateNextFollowUpDate(id, userId);
     }
 
@@ -342,8 +350,8 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   let currentStoredNextFollowUp: string | undefined = undefined;
     if (currentStoredNextFollowUpTimestamp) {
         if (typeof currentStoredNextFollowUpTimestamp === 'string') {
-            currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp;
-        } else if (currentStoredNextFollowUpTimestamp instanceof Timestamp) {
+            currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp; // Assumes it's already YYYY-MM-DD
+        } else if (typeof currentStoredNextFollowUpTimestamp.toDate === 'function') { // Duck typing
             currentStoredNextFollowUp = currentStoredNextFollowUpTimestamp.toDate().toISOString().split('T')[0]; // Get YYYY-MM-DD
         }
     }
@@ -536,7 +544,7 @@ export async function deleteFollowUp(followUpId: string): Promise<void> {
   });
 }
 
-export async function addInteraction(prospectId: string, interactionData: Omit<Interaction, 'id' | 'userId' | 'date'> & {date: string}): Promise<Interaction> {
+export async function addInteraction(prospectId: string, interactionData: Omit<Interaction, 'id' | 'userId' | 'date'> & {date: string; prospectId: string;}): Promise<Interaction> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
 
@@ -550,7 +558,7 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   const newInteractionData = {
     ...interactionData, 
     userId,
-    prospectId: interactionData.prospectId || prospectId, // Ensure prospectId is set
+    // prospectId is already in interactionData due to updated type
     date: interactionTimestamp,
   };
 
