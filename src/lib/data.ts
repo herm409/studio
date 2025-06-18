@@ -145,6 +145,7 @@ export async function getProspects(): Promise<Prospect[]> {
   const q = query(
     collection(db, PROSPECTS_COLLECTION), 
     where('userId', '==', userId)
+    // removed: orderBy('createdAt', 'desc') // Removed for simpler query while index builds
   );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
@@ -528,12 +529,24 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
 
 
   const now = Timestamp.now();
-  const newFollowUpData = {
+  const newFollowUpData: {[key: string]: any} = { // Explicitly type to allow dynamic keys
     ...followUpData,
     userId,
     createdAt: now, 
     updatedAt: now, 
   };
+
+  // Conditionally add AI suggestion fields
+  if (followUpData.aiSuggestedTone) {
+    newFollowUpData.aiSuggestedTone = followUpData.aiSuggestedTone;
+  }
+  if (followUpData.aiSuggestedContent) {
+    newFollowUpData.aiSuggestedContent = followUpData.aiSuggestedContent;
+  }
+  if (followUpData.aiSuggestedTool) {
+    newFollowUpData.aiSuggestedTool = followUpData.aiSuggestedTool;
+  }
+
   const docRef = await addDoc(collection(db, FOLLOW_UPS_COLLECTION), newFollowUpData);
 
   const prospectDocRef = doc(db, PROSPECTS_COLLECTION, followUpData.prospectId);
@@ -544,9 +557,8 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
     });
 
   return {
-    ...followUpData, 
+    ...newFollowUpData,
     id: docRef.id,
-    userId,
     createdAt: now.toDate().toISOString(), 
     updatedAt: now.toDate().toISOString(),
   } as FollowUp;
@@ -697,13 +709,19 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
 
 
   const interactionTimestamp = Timestamp.fromDate(new Date(interactionData.date));
-  const newInteractionData = {
-    ...interactionData, 
+  const dataToSave: { [key: string]: any } = { // Explicitly type to allow dynamic keys
+    prospectId: interactionData.prospectId,
     userId,
     date: interactionTimestamp,
+    type: interactionData.type,
+    summary: interactionData.summary,
   };
 
-  const docRef = await addDoc(collection(db, INTERACTIONS_COLLECTION), newInteractionData);
+  if (interactionData.outcome && interactionData.outcome.trim() !== "") {
+    dataToSave.outcome = interactionData.outcome;
+  }
+
+  const docRef = await addDoc(collection(db, INTERACTIONS_COLLECTION), dataToSave);
 
   await updateDoc(prospectDocRef, {
       lastContactedDate: interactionTimestamp, 
@@ -711,9 +729,12 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
     });
 
   return {
-    ...newInteractionData,
+    ...interactionData,
     id: docRef.id,
+    userId, // Add userId back for the returned object type
     date: interactionTimestamp.toDate().toISOString(),
+    // Conditionally include outcome in returned object only if it was saved
+    ...(dataToSave.outcome && { outcome: dataToSave.outcome }),
   } as Interaction;
 }
 
@@ -850,3 +871,4 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
     currentFollowUpStreak,
   };
 }
+
