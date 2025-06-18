@@ -315,7 +315,7 @@ export default function ProspectDetailPage() {
           suggestionResult={aiToneSuggestion && (
             <>
               <div><strong>Tone:</strong> <Badge variant="outline">{aiToneSuggestion.tone}</Badge></div>
-              <p><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></p>
+              <div><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></div>
               {aiToneSuggestion.suggestedTool && <p><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</p>}
             </>
           )}
