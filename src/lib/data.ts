@@ -1,5 +1,5 @@
 
-import type { Prospect, FollowUp, Interaction, GamificationStats } from '@/types';
+import type { Prospect, FollowUp, Interaction, GamificationStats, AccountabilitySummaryData } from '@/types';
 import { db, auth } from './firebase';
 import {
   collection,
@@ -8,7 +8,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
-  deleteDoc, // Added deleteDoc
+  deleteDoc, 
   query,
   where,
   Timestamp,
@@ -163,7 +163,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     currentFunnelStage: prospectData.currentFunnelStage,
     followUpStageNumber: prospectData.followUpStageNumber,
     userId,
-    ...aiDetails, // Spread AI generated details (colorCode, colorCodeReasoning)
+    ...aiDetails, 
     createdAt: now,
     updatedAt: now,
   };
@@ -171,17 +171,14 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
   if (prospectData.email && prospectData.email.trim() !== "") {
     dataForFirestore.email = prospectData.email;
   }
-  // No 'else' for email; if it's empty/whitespace, it's simply not added to dataForFirestore.
 
   if (prospectData.phone && prospectData.phone.trim() !== "") {
     dataForFirestore.phone = prospectData.phone;
   }
-  // No 'else' for phone.
 
   if (prospectData.avatarUrl && prospectData.avatarUrl.trim() !== "") {
     dataForFirestore.avatarUrl = prospectData.avatarUrl;
   } else {
-    // Default placeholder if avatarUrl is empty, null, undefined, or whitespace.
     dataForFirestore.avatarUrl = `https://placehold.co/100x100.png?text=${prospectData.name.charAt(0)}`;
   }
 
@@ -192,8 +189,8 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     id: docRef.id,
     userId: dataForFirestore.userId,
     name: dataForFirestore.name,
-    email: dataForFirestore.email, // Will be undefined if not in dataForFirestore
-    phone: dataForFirestore.phone, // Will be undefined if not in dataForFirestore
+    email: dataForFirestore.email, 
+    phone: dataForFirestore.phone, 
     initialData: dataForFirestore.initialData,
     currentFunnelStage: dataForFirestore.currentFunnelStage,
     followUpStageNumber: dataForFirestore.followUpStageNumber,
@@ -221,15 +218,13 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   const originalProspectData = prospectSnap.data() as Prospect;
   const updatesForFirestore: { [key: string]: any } = { updatedAt: Timestamp.now() };
 
-  // Iterate over keys in updates to build updatesForFirestore object
   for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
     const value = updates[key];
     if ((key === 'email' || key === 'phone') && value === '') {
-      updatesForFirestore[key] = deleteField(); // Remove field if empty string
+      updatesForFirestore[key] = deleteField(); 
     } else if (key === 'avatarUrl' && value === '') {
-      // Set default placeholder if avatarUrl is cleared with an empty string
       updatesForFirestore[key] = `https://placehold.co/100x100.png?text=${(updates.name || originalProspectData.name).charAt(0)}`;
-    } else if (value !== undefined) { // Only include the field if value is not undefined
+    } else if (value !== undefined) { 
       updatesForFirestore[key] = value;
     }
   }
@@ -242,11 +237,10 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
       initialData: updates.initialData || originalProspectData.initialData,
       userId,
     });
-    Object.assign(updatesForFirestore, aiDetails); // Merge AI details into updatesForFirestore
+    Object.assign(updatesForFirestore, aiDetails); 
   }
 
   await updateDoc(prospectDocRef, updatesForFirestore);
-  // After updating, recalculate nextFollowUpDate for the prospect
   const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
   if (updatedNextFollowUpDate !== originalProspectData.nextFollowUpDate) {
       await updateDoc(prospectDocRef, { nextFollowUpDate: updatedNextFollowUpDate || deleteField() });
@@ -270,7 +264,7 @@ export async function getFollowUpsForProspect(prospectId: string): Promise<Follo
   return querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     const createdAtTimestamp = data.createdAt as Timestamp | undefined;
-    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : undefined; 
+    const updatedAtTimestamp = data.updatedAt as Timestamp | undefined;
     return {
       id: docSnap.id,
       userId: data.userId,
@@ -283,7 +277,8 @@ export async function getFollowUpsForProspect(prospectId: string): Promise<Follo
       aiSuggestedTone: data.aiSuggestedTone,
       aiSuggestedContent: data.aiSuggestedContent,
       aiSuggestedTool: data.aiSuggestedTool,
-      createdAt: createdAtString,
+      createdAt: createdAtTimestamp?.toDate().toISOString(),
+      updatedAt: updatedAtTimestamp?.toDate().toISOString(),
     } as FollowUp;
   });
 }
@@ -292,11 +287,11 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   const userId = getCurrentUserId();
   if (!userId) return [];
 
-  const today = new Date(); // Server's current time
-  const startDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Midnight server time for 'today'
+  const today = new Date(); 
+  const startDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
 
   const endDateObj = new Date(startDateObj);
-  endDateObj.setDate(startDateObj.getDate() + days - 1); // For a 7-day window including today (e.g., today + 6 more days)
+  endDateObj.setDate(startDateObj.getDate() + days -1); 
 
   const startDateString = startDateObj.toISOString().split('T')[0];
   const endDateString = endDateObj.toISOString().split('T')[0];
@@ -315,7 +310,7 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   return querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     const createdAtTimestamp = data.createdAt as Timestamp | undefined;
-    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : undefined;
+    const updatedAtTimestamp = data.updatedAt as Timestamp | undefined;
     return {
       id: docSnap.id,
       userId: data.userId,
@@ -328,12 +323,13 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
       aiSuggestedTone: data.aiSuggestedTone,
       aiSuggestedContent: data.aiSuggestedContent,
       aiSuggestedTool: data.aiSuggestedTool,
-      createdAt: createdAtString,
+      createdAt: createdAtTimestamp?.toDate().toISOString(),
+      updatedAt: updatedAtTimestamp?.toDate().toISOString(),
     } as FollowUp;
   });
 }
 
-export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt' | 'userId'>): Promise<FollowUp> {
+export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt'| 'userId'>): Promise<FollowUp> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
 
@@ -341,26 +337,28 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
   const newFollowUpData = {
     ...followUpData,
     userId,
-    createdAt: now, // Firestore Timestamp
+    createdAt: now, 
+    updatedAt: now, 
   };
   const docRef = await addDoc(collection(db, FOLLOW_UPS_COLLECTION), newFollowUpData);
 
   const prospectDocRef = doc(db, PROSPECTS_COLLECTION, followUpData.prospectId);
   const nextFollowUpDate = await calculateNextFollowUpDate(followUpData.prospectId, userId);
   await updateDoc(prospectDocRef, {
-      nextFollowUpDate: nextFollowUpDate || deleteField(), // Store as string or delete if none
+      nextFollowUpDate: nextFollowUpDate || deleteField(), 
       updatedAt: Timestamp.now()
     });
 
   return {
-    ...followUpData, // Contains all original fields except id, createdAt, userId
+    ...followUpData, 
     id: docRef.id,
     userId,
-    createdAt: now.toDate().toISOString(), // Convert to ISO string for return type
+    createdAt: now.toDate().toISOString(), 
+    updatedAt: now.toDate().toISOString(),
   } as FollowUp;
 }
 
-export async function updateFollowUp(followUpId: string, updates: Partial<Omit<FollowUp, 'id' | 'createdAt' | 'prospectId' | 'userId'>>): Promise<FollowUp | undefined> {
+export async function updateFollowUp(followUpId: string, updates: Partial<Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt' | 'prospectId' | 'userId'>>): Promise<FollowUp | undefined> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
 
@@ -371,26 +369,26 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
     throw new Error("Follow-up not found or unauthorized");
   }
 
-  const originalFollowUpData = followUpSnap.data()!; // Assert data exists
-  await updateDoc(followUpDocRef, updates);
+  const originalFollowUpData = followUpSnap.data()!; 
+  const updatesForFirestore: { [key: string]: any } = { ...updates, updatedAt: Timestamp.now() };
+  await updateDoc(followUpDocRef, updatesForFirestore);
 
-   // Construct the original and updated FollowUp objects for gamification logic
    const originalFollowUpForGamification: FollowUp = {
     id: followUpSnap.id,
     ...originalFollowUpData,
     createdAt: (originalFollowUpData.createdAt as Timestamp | undefined)?.toDate().toISOString(),
+    updatedAt: (originalFollowUpData.updatedAt as Timestamp | undefined)?.toDate().toISOString(),
   } as FollowUp;
 
   const updatedFollowUpForGamification: FollowUp = {
     ...originalFollowUpForGamification,
-    ...updates, // Apply updates
+    ...updates, 
+    updatedAt: (updatesForFirestore.updatedAt as Timestamp).toDate().toISOString(), 
   };
-
 
   if (updates.status && updates.status !== 'Pending' && originalFollowUpForGamification.status === 'Pending') {
      updateGamificationOnFollowUpComplete(originalFollowUpForGamification, updatedFollowUpForGamification);
   }
-
 
   const prospectDocRef = doc(db, PROSPECTS_COLLECTION, originalFollowUpData.prospectId);
   const nextFollowUpDate = await calculateNextFollowUpDate(originalFollowUpData.prospectId, userId);
@@ -405,6 +403,7 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
       id: updatedSnap.id,
       ...finalData,
       createdAt: (finalData.createdAt as Timestamp | undefined)?.toDate().toISOString(),
+      updatedAt: (finalData.updatedAt as Timestamp)?.toDate().toISOString(),
     } as FollowUp;
 }
 
@@ -423,7 +422,6 @@ export async function deleteFollowUp(followUpId: string): Promise<void> {
 
   await deleteDoc(followUpDocRef);
 
-  // After deleting, recalculate nextFollowUpDate for the prospect
   const prospectDocRef = doc(db, PROSPECTS_COLLECTION, prospectId);
   const nextFollowUpDate = await calculateNextFollowUpDate(prospectId, userId);
   await updateDoc(prospectDocRef, {
@@ -453,7 +451,7 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   const docRef = await addDoc(collection(db, INTERACTIONS_COLLECTION), newInteractionData);
 
   await updateDoc(prospectDocRef, {
-      lastContactedDate: interactionTimestamp.toDate().toISOString(), // Store as ISO string
+      lastContactedDate: interactionTimestamp.toDate().toISOString(), 
       updatedAt: Timestamp.now()
     });
 
@@ -537,17 +535,71 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
 
     if (updatedFollowUp.status === 'Completed') {
       currentStats.totalOnTimeFollowUps = (currentStats.totalOnTimeFollowUps || 0) + 1;
-      // Only increment streak if this is a new day of activity
       if (currentStats.lastFollowUpActivityDate !== todayStr) {
          currentStats.followUpStreak = (currentStats.followUpStreak || 0) + 1;
       }
       currentStats.lastFollowUpActivityDate = todayStr;
     } else if (updatedFollowUp.status === 'Missed') {
       currentStats.totalMissedFollowUps = (currentStats.totalMissedFollowUps || 0) + 1;
-      currentStats.followUpStreak = 0; // Reset streak on missed
-      currentStats.lastFollowUpActivityDate = todayStr; // Still counts as activity for the day
+      currentStats.followUpStreak = 0; 
+      currentStats.lastFollowUpActivityDate = todayStr; 
     }
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
 
+export async function getAccountabilitySummaryData(): Promise<AccountabilitySummaryData> {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    return { newProspectsLast14Days: 0, followUpsCompletedLast14Days: 0, interactionsLoggedLast14Days: 0, currentFollowUpStreak: 0 };
+  }
+
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const fourteenDaysAgoTimestamp = Timestamp.fromDate(fourteenDaysAgo);
+
+  // New Prospects
+  const prospectsQuery = query(
+    collection(db, PROSPECTS_COLLECTION),
+    where('userId', '==', userId),
+    where('createdAt', '>=', fourteenDaysAgoTimestamp)
+  );
+  const prospectsSnap = await getDocs(prospectsQuery);
+  const newProspectsLast14Days = prospectsSnap.size;
+
+  // Follow-ups Completed
+  const followUpsQuery = query(
+    collection(db, FOLLOW_UPS_COLLECTION),
+    where('userId', '==', userId),
+    where('status', '==', 'Completed'),
+    where('updatedAt', '>=', fourteenDaysAgoTimestamp) // Querying based on when it was marked completed
+  );
+  const followUpsSnap = await getDocs(followUpsQuery);
+  const followUpsCompletedLast14Days = followUpsSnap.size;
+  
+  // Interactions Logged
+  // Note: Interaction 'date' is stored as ISO string, but for querying Firestore Timestamps directly is better if possible.
+  // For simplicity with current structure where interaction 'date' is a string upon creation from client:
+  // This part might be less efficient or require client-side filtering if 'date' isn't a Timestamp in FS.
+  // Assuming 'date' in interactions is a Firestore Timestamp for server-side query.
+  // If 'date' is string, this query needs adjustment or a different approach.
+  // The addInteraction function converts to Timestamp, so this should be fine.
+  const interactionsQuery = query(
+    collection(db, INTERACTIONS_COLLECTION),
+    where('userId', '==', userId),
+    where('date', '>=', fourteenDaysAgoTimestamp) // 'date' is a Timestamp in Firestore
+  );
+  const interactionsSnap = await getDocs(interactionsQuery);
+  const interactionsLoggedLast14Days = interactionsSnap.size;
+
+  // Current Follow-up Streak
+  const gamificationStats = await getGamificationStats(); // This function already handles userId check
+  const currentFollowUpStreak = gamificationStats.followUpStreak;
+
+  return {
+    newProspectsLast14Days,
+    followUpsCompletedLast14Days,
+    interactionsLoggedLast14Days,
+    currentFollowUpStreak,
+  };
+}

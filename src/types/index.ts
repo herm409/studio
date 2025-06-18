@@ -26,6 +26,7 @@ export interface FollowUp {
   aiSuggestedContent?: string;
   aiSuggestedTool?: string;
   createdAt?: string; // ISO string, made optional
+  updatedAt?: string; // ISO string, to track when it was last modified (e.g., completed)
 }
 
 export interface Prospect {
@@ -55,4 +56,11 @@ export interface GamificationStats {
   totalOnTimeFollowUps: number;
   totalMissedFollowUps: number;
   lastFollowUpActivityDate: string | null; // YYYY-MM-DD, to help with streak logic
+}
+
+export interface AccountabilitySummaryData {
+  newProspectsLast14Days: number;
+  followUpsCompletedLast14Days: number;
+  interactionsLoggedLast14Days: number;
+  currentFollowUpStreak: number;
 }

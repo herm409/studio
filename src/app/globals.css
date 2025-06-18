@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
     --background: 220 13% 95.1%; /* #F0F2F5 Light Gray */
@@ -104,5 +100,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* font-family: 'Inter', sans-serif; /* Ensuring Inter is the base font if not overridden by Tailwind */
   }
 }

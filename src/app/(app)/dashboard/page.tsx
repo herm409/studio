@@ -1,24 +1,35 @@
 
 import { UpcomingFollowUps } from "@/components/dashboard/UpcomingFollowUps";
-import { getUpcomingFollowUps, getProspects, getGamificationStats } from "@/lib/data";
+import { getUpcomingFollowUps, getProspects, getGamificationStats, getAccountabilitySummaryData } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Target, Trophy } from "lucide-react";
-import type { GamificationStats } from "@/types";
+import { Target, Trophy, Share2, Send } from "lucide-react";
+import type { GamificationStats, AccountabilitySummaryData } from "@/types";
+import Link from "next/link"; // Added for potential future links, not strictly needed for SMS
 
-export const dynamic = 'force-dynamic'; // Ensures the page is re-rendered on every request
+export const dynamic = 'force-dynamic'; 
 
-const DAILY_PROSPECT_GOAL = 2; // Consistent with gamification page
+const DAILY_PROSPECT_GOAL = 2; 
 
 export default async function DashboardPage() {
   const upcomingFollowUpsData = await getUpcomingFollowUps(7);
   const prospectsData = await getProspects();
   const gamificationStats: GamificationStats = await getGamificationStats();
+  const accountabilityData: AccountabilitySummaryData = await getAccountabilitySummaryData();
 
   const dailyProspectProgress = Math.min((gamificationStats.dailyProspectsAdded / DAILY_PROSPECT_GOAL) * 100, 100);
-  // For streak, we might need to define milestones or just show current streak.
-  // For simplicity, let's assume a generic progress or just the number.
-  // The gamification page has more detailed streak logic. Here, we'll just show the streak value.
+  
+  const accountabilitySummaryText = `Here's my Follow-Up Flow activity for the last 2 weeks:
+- New Prospects: ${accountabilityData.newProspectsLast14Days}
+- Follow-ups Done: ${accountabilityData.followUpsCompletedLast14Days}
+- Notes Logged: ${accountabilityData.interactionsLoggedLast14Days}
+- Current Streak: ${accountabilityData.currentFollowUpStreak} days
+
+Any tips for improvement?`;
+
+  const encodedSummaryText = encodeURIComponent(accountabilitySummaryText);
+  const smsLink = `sms:?body=${encodedSummaryText}`;
 
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
@@ -56,12 +67,6 @@ export default async function DashboardPage() {
                   {gamificationStats.followUpStreak} Day{gamificationStats.followUpStreak === 1 ? "" : "s"}
                 </span>
               </div>
-              {/* 
-                Simple progress for streak might not be meaningful without a target.
-                Displaying the number is clearer. For a visual, we could use a static bar or icons.
-                Let's keep the progress bar but acknowledge it might not be the best visual for a streak without a defined "next milestone" easily available here.
-                The GamificationPage has more complex streak milestone logic.
-              */}
               <Progress value={(gamificationStats.followUpStreak / 5) * 100} aria-label="Follow-up streak" className="[&>*]:bg-accent" />
               <p className="text-xs text-muted-foreground mt-1">Keep your follow-up streak going!</p>
             </div>
@@ -70,6 +75,34 @@ export default async function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-xl flex items-center">
+              <Share2 className="mr-2 h-6 w-6 text-blue-500" />
+              Accountability Update
+            </CardTitle>
+            <CardDescription>Share your progress with your partner.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Summary for the last 2 weeks:
+            </p>
+            <ul className="text-xs list-disc list-inside pl-2 space-y-0.5">
+                <li>New Prospects: {accountabilityData.newProspectsLast14Days}</li>
+                <li>Follow-ups Done: {accountabilityData.followUpsCompletedLast14Days}</li>
+                <li>Notes Logged: {accountabilityData.interactionsLoggedLast14Days}</li>
+                <li>Current Streak: {accountabilityData.currentFollowUpStreak} days</li>
+            </ul>
+             <Button asChild className="w-full mt-2">
+              <a href={smsLink}>
+                <Send className="mr-2 h-4 w-4" /> Send via Text Message
+              </a>
+            </Button>
+            <p className="text-xs text-muted-foreground text-center pt-1">Opens your default SMS app.</p>
+          </CardContent>
+        </Card>
+
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-xl flex items-center">
