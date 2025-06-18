@@ -270,8 +270,7 @@ export async function getFollowUpsForProspect(prospectId: string): Promise<Follo
   return querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     const createdAtTimestamp = data.createdAt as Timestamp | undefined;
-    // Fallback to epoch if createdAt is missing, though new follow-ups should always have it.
-    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : new Date(0).toISOString(); 
+    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : undefined; 
     return {
       id: docSnap.id,
       userId: data.userId,
@@ -293,17 +292,21 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   const userId = getCurrentUserId();
   if (!userId) return [];
 
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const upcomingDateLimit = new Date(today);
-  upcomingDateLimit.setDate(today.getDate() + days);
+  const today = new Date(); // Server's current time
+  const startDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Midnight server time for 'today'
+
+  const endDateObj = new Date(startDateObj);
+  endDateObj.setDate(startDateObj.getDate() + days - 1); // For a 7-day window including today (e.g., today + 6 more days)
+
+  const startDateString = startDateObj.toISOString().split('T')[0];
+  const endDateString = endDateObj.toISOString().split('T')[0];
 
   const q = query(
     collection(db, FOLLOW_UPS_COLLECTION),
     where('userId', '==', userId),
     where('status', '==', 'Pending'),
-    where('date', '>=', today.toISOString().split('T')[0]),
-    where('date', '<=', upcomingDateLimit.toISOString().split('T')[0]),
+    where('date', '>=', startDateString),
+    where('date', '<=', endDateString),
     orderBy('date', 'asc'),
     orderBy('time', 'asc')
   );
@@ -312,8 +315,7 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
   return querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     const createdAtTimestamp = data.createdAt as Timestamp | undefined;
-    // Fallback to epoch if createdAt is missing, though new follow-ups should always have it.
-    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : new Date(0).toISOString();
+    const createdAtString = createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : undefined;
     return {
       id: docSnap.id,
       userId: data.userId,
@@ -376,7 +378,7 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
    const originalFollowUpForGamification: FollowUp = {
     id: followUpSnap.id,
     ...originalFollowUpData,
-    createdAt: (originalFollowUpData.createdAt as Timestamp | undefined)?.toDate().toISOString() || new Date(0).toISOString(),
+    createdAt: (originalFollowUpData.createdAt as Timestamp | undefined)?.toDate().toISOString(),
   } as FollowUp;
 
   const updatedFollowUpForGamification: FollowUp = {
@@ -402,7 +404,7 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
   return {
       id: updatedSnap.id,
       ...finalData,
-      createdAt: (finalData.createdAt as Timestamp | undefined)?.toDate().toISOString() || new Date(0).toISOString(),
+      createdAt: (finalData.createdAt as Timestamp | undefined)?.toDate().toISOString(),
     } as FollowUp;
 }
 
@@ -548,3 +550,4 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
+
