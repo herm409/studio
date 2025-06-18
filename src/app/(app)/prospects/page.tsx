@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge"; // Added import for Badge
+import { Badge } from "@/components/ui/badge";
 import { PlusCircle, ArrowRight, Mail, Phone, CalendarDays, Search, Filter, SortAsc, SortDesc, MessageSquareText, AlertTriangle, Info } from "lucide-react";
 import Link from "next/link";
 import { FunnelProgress } from "@/components/shared/FunnelProgress";
@@ -29,12 +29,12 @@ export default function ProspectsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("name-asc");
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
-  const [filterStage, setFilterStage] = useState<string>(""); // Store stage number as string, "" or "all" for no filter
+  const [filterStage, setFilterStage] = useState<string>("all"); 
 
   useEffect(() => {
     async function loadProspects() {
       if (!user) {
-        setIsLoading(false); // Not logged in, stop loading
+        setIsLoading(false); 
         return;
       }
       setIsLoading(true);
@@ -279,7 +279,7 @@ export default function ProspectsPage() {
                       ) : (
                          <p className="flex items-center text-muted-foreground/70"><CalendarDays className="w-3 h-3 mr-1.5"/>No upcoming follow-up</p>
                       )}
-                      <p className="text-xs">Stage Number: <Badge variant="secondary" className="px-1.5 py-0 text-xs">{prospect.followUpStageNumber}</Badge></p>
+                      <div className="text-xs">Stage Number: <Badge variant="secondary" className="px-1.5 py-0 text-xs">{prospect.followUpStageNumber}</Badge></div>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2" title={prospect.initialData}>
                     {prospect.initialData}
@@ -300,3 +300,6 @@ export default function ProspectsPage() {
     </div>
   );
 }
+
+
+    
