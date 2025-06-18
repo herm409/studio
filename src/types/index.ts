@@ -50,10 +50,10 @@ export interface Prospect {
 export interface GamificationStats {
   // userId will be the document ID in Firestore
   dailyProspectsAdded: number;
-  lastProspectAddedDate?: string; // YYYY-MM-DD
+  lastProspectAddedDate: string | null; // YYYY-MM-DD
   followUpStreak: number;
   totalOnTimeFollowUps: number;
   totalMissedFollowUps: number;
-  lastFollowUpActivityDate?: string; // YYYY-MM-DD, to help with streak logic
+  lastFollowUpActivityDate: string | null; // YYYY-MM-DD, to help with streak logic
 }
 
