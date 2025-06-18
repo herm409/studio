@@ -65,8 +65,12 @@ export async function updateUserFirestoreProfile(userId: string, data: { display
   }
 }
 
-interface EnsureProspectDetailsInput extends Pick<Prospect, 'name' | 'followUpStageNumber' | 'currentFunnelStage' | 'initialData'> {
+interface EnsureProspectDetailsInput {
   userId: string;
+  name: string;
+  followUpStageNumber: number;
+  currentFunnelStage: FunnelStageType;
+  initialData: string;
   id?: string;
   colorCode?: string;
   colorCodeReasoning?: string;
@@ -131,11 +135,17 @@ export async function getProspects(): Promise<Prospect[]> {
       followUpStageNumber: data.followUpStageNumber,
       colorCode: data.colorCode,
       colorCodeReasoning: data.colorCodeReasoning,
-      lastContactedDate: data.lastContactedDate ? (typeof data.lastContactedDate === 'string' ? data.lastContactedDate : data.lastContactedDate.toDate().toISOString()) : undefined,
-      nextFollowUpDate: data.nextFollowUpDate ? (typeof data.nextFollowUpDate === 'string' ? data.nextFollowUpDate : data.nextFollowUpDate.toDate().toISOString()) : await calculateNextFollowUpDate(prospectDoc.id, userId),
+      lastContactedDate: data.lastContactedDate ? 
+        (typeof data.lastContactedDate === 'string' ? data.lastContactedDate : 
+          (data.lastContactedDate instanceof Timestamp ? data.lastContactedDate.toDate().toISOString() : undefined)) 
+        : undefined,
+      nextFollowUpDate: data.nextFollowUpDate ? 
+        (typeof data.nextFollowUpDate === 'string' ? data.nextFollowUpDate : 
+          (data.nextFollowUpDate instanceof Timestamp ? data.nextFollowUpDate.toDate().toISOString() : undefined)) 
+        : await calculateNextFollowUpDate(prospectDoc.id, userId),
       interactionHistory: [],
-      createdAt: data.createdAt.toDate().toISOString(),
-      updatedAt: data.updatedAt.toDate().toISOString(),
+      createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+      updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
       avatarUrl: data.avatarUrl,
     };
     prospectsList.push(prospect);
@@ -178,11 +188,17 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
       followUpStageNumber: data.followUpStageNumber,
       colorCode: data.colorCode,
       colorCodeReasoning: data.colorCodeReasoning,
-      lastContactedDate: data.lastContactedDate ? (typeof data.lastContactedDate === 'string' ? data.lastContactedDate : data.lastContactedDate.toDate().toISOString()) : undefined,
-      nextFollowUpDate: data.nextFollowUpDate ? (typeof data.nextFollowUpDate === 'string' ? data.nextFollowUpDate : data.nextFollowUpDate.toDate().toISOString()) : await calculateNextFollowUpDate(id, userId),
+      lastContactedDate: data.lastContactedDate ? 
+        (typeof data.lastContactedDate === 'string' ? data.lastContactedDate : 
+          (data.lastContactedDate instanceof Timestamp ? data.lastContactedDate.toDate().toISOString() : undefined)) 
+        : undefined,
+      nextFollowUpDate: data.nextFollowUpDate ? 
+        (typeof data.nextFollowUpDate === 'string' ? data.nextFollowUpDate : 
+          (data.nextFollowUpDate instanceof Timestamp ? data.nextFollowUpDate.toDate().toISOString() : undefined)) 
+        : await calculateNextFollowUpDate(id, userId),
       interactionHistory: interactionHistory,
-      createdAt: data.createdAt.toDate().toISOString(),
-      updatedAt: data.updatedAt.toDate().toISOString(),
+      createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+      updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
       avatarUrl: data.avatarUrl,
     };
     return prospect;
@@ -195,13 +211,12 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
   if (!userId) throw new Error("User not authenticated");
 
   const now = Timestamp.now();
-  // For addProspect, prospectData doesn't have colorCode/colorCodeReasoning yet, so they'll be undefined when passed to ensureProspectDetails
+  
   const aiDetails = await ensureProspectDetails({ 
     name: prospectData.name,
     followUpStageNumber: prospectData.followUpStageNumber,
     currentFunnelStage: prospectData.currentFunnelStage,
     initialData: prospectData.initialData,
-    // colorCode and colorCodeReasoning will be implicitly undefined here
     userId 
   });
 
@@ -246,7 +261,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     colorCode: dataForFirestore.colorCode,
     colorCodeReasoning: dataForFirestore.colorCodeReasoning,
     lastContactedDate: undefined,
-    nextFollowUpDate: undefined, // Will be calculated by getProspects or when first follow-up is added
+    nextFollowUpDate: undefined, 
     interactionHistory: [],
     createdAt: now.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),
@@ -264,7 +279,7 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     throw new Error("Prospect not found or unauthorized");
   }
   
-  const originalProspectData = prospectSnap.data() as Prospect; // Cast to full Prospect type
+  const originalProspectData = prospectSnap.data() as Prospect; 
   const updatesForFirestore: { [key: string]: any } = { updatedAt: Timestamp.now() };
 
   for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
@@ -278,15 +293,15 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     }
   }
   
-  // Check if color code related fields need update
+  
   if (updates.followUpStageNumber && updates.followUpStageNumber !== originalProspectData.followUpStageNumber) {
     const aiDetails = await ensureProspectDetails({
       name: updates.name || originalProspectData.name,
       followUpStageNumber: updates.followUpStageNumber,
       currentFunnelStage: updates.currentFunnelStage || originalProspectData.currentFunnelStage,
       initialData: updates.initialData || originalProspectData.initialData,
-      colorCode: originalProspectData.colorCode, // Pass existing color code
-      colorCodeReasoning: originalProspectData.colorCodeReasoning, // Pass existing reasoning
+      colorCode: originalProspectData.colorCode, 
+      colorCodeReasoning: originalProspectData.colorCodeReasoning, 
       userId,
     });
     Object.assign(updatesForFirestore, aiDetails); 
@@ -294,7 +309,7 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
 
   await updateDoc(prospectDocRef, updatesForFirestore);
   const updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
-  // Check if nextFollowUpDate actually needs to be updated to avoid unnecessary write
+  
   const currentStoredNextFollowUp = prospectSnap.data().nextFollowUpDate;
   if (updatedNextFollowUpDate !== currentStoredNextFollowUp) {
       await updateDoc(prospectDocRef, { nextFollowUpDate: updatedNextFollowUpDate || deleteField() });
@@ -496,9 +511,8 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
 
   const interactionTimestamp = Timestamp.fromDate(new Date(interactionData.date));
   const newInteractionData = {
-    ...interactionData, // This already includes prospectId if present in the function call
+    ...interactionData, 
     userId,
-    // If prospectId is not on interactionData argument, ensure it's added:
     prospectId: interactionData.prospectId || prospectId,
     date: interactionTimestamp,
   };
