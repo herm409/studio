@@ -26,8 +26,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-// Note: FollowUpItem is not used here anymore, logic is inlined or adapted.
-// If FollowUpModal for editing is needed, it should be imported and managed.
 
 const getMethodIcon = (method?: FollowUp['method']) => {
   switch(method) {
@@ -45,10 +43,6 @@ export default function CalendarPage() {
   const [allFollowUps, setAllFollowUps] = useState<FollowUp[]>([]);
   const [prospectsMap, setProspectsMap] = useState<Map<string, Prospect>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
-  // State for managing editing follow-up if edit functionality is added back
-  // const [editingFollowUp, setEditingFollowUp] = useState<FollowUp | null>(null);
-  // const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
-
 
   const fetchCalendarData = async () => {
       if (!user) {
@@ -110,7 +104,7 @@ export default function CalendarPage() {
     try {
       await serverUpdateFollowUp(followUpId, { status }); 
       toast({ title: "Success", description: `Follow-up marked as ${status}.` });
-      fetchCalendarData(); // Refetch all data
+      fetchCalendarData(); 
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to update follow-up status.", variant: "destructive" });
     }
@@ -120,20 +114,12 @@ export default function CalendarPage() {
     try {
       await serverDeleteFollowUp(followUpId);
       toast({ title: "Success", description: "Follow-up deleted." });
-      fetchCalendarData(); // Refetch all data
+      fetchCalendarData(); 
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to delete follow-up.", variant: "destructive" });
     }
   };
   
-  // const handleEditFollowUp = (followUp: FollowUp) => {
-  //   // Logic to open edit modal - needs FollowUpForm and Dialog state
-  //   // setEditingFollowUp(followUp);
-  //   // setIsFollowUpModalOpen(true);
-  //   toast({title: "Info", description: "Edit functionality to be implemented here."})
-  // };
-
-
   if (isLoading && !selectedDate) { 
     return (
       <div className="flex justify-center items-center h-64">
@@ -190,7 +176,7 @@ export default function CalendarPage() {
                   const now = new Date();
                   const followUpDateTime = new Date(`${fu.date}T${fu.time}`);
 
-                  let displayStatusText = fu.status;
+                  let displayStatusText: string = fu.status; // Explicitly type as string
                   let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "outline";
                   let itemClasses = "border";
                   let statusIcon = null;
@@ -205,12 +191,12 @@ export default function CalendarPage() {
                       const hoursDiff = (followUpDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
                       if (isToday(followUpDateTime) && hoursDiff <= 3 && hoursDiff >= 0) {
                         displayStatusText = 'Due Soon';
-                        badgeVariant = 'default'; // Using 'default' (primary) for due soon, could be 'accent' (teal)
-                        itemClasses = "border-primary bg-primary/10"; // Was accent
-                        statusIcon = <Clock className="w-4 h-4 mr-1 text-primary shrink-0" />; // Was accent
+                        badgeVariant = 'default'; 
+                        itemClasses = "border-accent bg-accent/10"; 
+                        statusIcon = <Clock className="w-4 h-4 mr-1 text-accent shrink-0" />; 
                       } else if (isToday(followUpDateTime)) {
                         displayStatusText = 'Today';
-                        badgeVariant = 'default'; // Using 'default' (primary) for today
+                        badgeVariant = 'default'; 
                         itemClasses = "border-primary bg-primary/10";
                         statusIcon = <Clock className="w-4 h-4 mr-1 text-primary shrink-0" />;
                       } else {
@@ -220,7 +206,7 @@ export default function CalendarPage() {
                     }
                   } else if (fu.status === 'Completed') {
                     displayStatusText = 'Completed';
-                    badgeVariant = 'secondary'; // Using secondary for completed
+                    badgeVariant = 'default'; // Using primary color for completed, styled with green below
                     itemClasses = "border-green-500 bg-green-500/10 opacity-80";
                     statusIcon = <CheckCircle className="w-4 h-4 mr-1 text-green-600 shrink-0" />;
                   } else if (fu.status === 'Missed') {
@@ -233,7 +219,7 @@ export default function CalendarPage() {
                   return (
                     <li key={fu.id} className={cn("p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow", itemClasses)}>
                       <div className="flex items-start gap-3">
-                        <Avatar className="h-10 w-10 border mt-1">
+                        <Avatar className="h-10 w-10 border mt-1 shrink-0">
                            <AvatarImage src={prospect?.avatarUrl || `https://placehold.co/40x40.png?text=${prospect?.name?.charAt(0) || 'P'}`} alt={prospect?.name} data-ai-hint="person face" />
                            <AvatarFallback>{prospect?.name?.charAt(0) || 'P'}</AvatarFallback>
                         </Avatar>
@@ -264,9 +250,6 @@ export default function CalendarPage() {
                                         </Button>
                                     </>
                                 )}
-                                {/* <Button size="xs" variant="ghost" onClick={() => handleEditFollowUp(fu)}>
-                                    <Edit2 className="w-3 h-3 mr-1" /> Edit
-                                </Button> */}
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button size="xs" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">

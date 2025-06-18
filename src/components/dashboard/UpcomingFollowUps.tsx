@@ -63,31 +63,43 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
             
             let urgencyStyles = "border-gray-300";
             let urgencyIcon = null;
-            let statusText = "Scheduled"; // Default text for future items
+            let statusText = "Scheduled"; 
+            let statusBadgeClasses = "";
+
 
             if (fu.status === 'Pending') {
                  if (followUpDateTime < now) {
-                    urgencyStyles = "border-destructive text-destructive";
+                    urgencyStyles = "border-destructive";
                     urgencyIcon = <AlertTriangle className="w-4 h-4 mr-1 text-destructive shrink-0" />;
                     statusText = "Overdue";
+                    statusBadgeClasses = "bg-destructive/20 text-destructive";
                 } else {
                     const hoursDiff = (followUpDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
                     if (isToday(followUpDateTime) && hoursDiff <= 3 && hoursDiff >=0) {
-                        urgencyStyles = "border-accent text-accent-foreground"; // Teal for Due Soon
+                        urgencyStyles = "border-accent"; 
                         urgencyIcon = <Clock className="w-4 h-4 mr-1 text-accent shrink-0" />;
                         statusText = "Due Soon";
+                        statusBadgeClasses = "bg-accent/20 text-accent";
                     } else if (isToday(followUpDateTime)) {
-                        urgencyStyles = "border-primary text-primary-foreground"; // Blue for Today
+                        urgencyStyles = "border-primary"; 
                         urgencyIcon = <Clock className="w-4 h-4 mr-1 text-primary shrink-0" />;
                         statusText = "Today";
+                        statusBadgeClasses = "bg-primary/20 text-primary";
                     } else if (isTomorrow(followUpDateTime)) {
-                        urgencyStyles = "border-blue-500 text-blue-600"; // Existing tomorrow style
+                        urgencyStyles = "border-blue-500"; 
                         statusText = "Tomorrow";
+                        statusBadgeClasses = "bg-blue-500/20 text-blue-600";
+                    } else {
+                         statusBadgeClasses = "bg-secondary text-secondary-foreground"; // Default for pending future
                     }
                 }
             } else {
-                // Handle completed/missed if they were to appear here, though query filters for 'Pending'
                 statusText = fu.status; 
+                if (fu.status === 'Completed') {
+                    statusBadgeClasses = "bg-green-500/20 text-green-600";
+                } else if (fu.status === 'Missed') {
+                    statusBadgeClasses = "bg-destructive/20 text-destructive";
+                }
             }
 
 
@@ -111,11 +123,7 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                       <div className="flex items-center">
                         <CalendarClock className="w-4 h-4 mr-1 text-muted-foreground shrink-0" />
                         <span>{isValid(parseISO(fu.date)) ? format(parseISO(fu.date), 'EEE, MMM d') : 'Invalid Date'} at {fu.time}</span>
-                        <span className={cn("ml-2 font-medium text-xs px-1.5 py-0.5 rounded-full", 
-                            statusText === "Overdue" && "bg-destructive/20 text-destructive-foreground",
-                            statusText === "Due Soon" && "bg-accent/20 text-accent-foreground",
-                            statusText === "Today" && "bg-primary/20 text-primary-foreground"
-                        )}>{statusText}</span>
+                        <span className={cn("ml-2 font-medium text-xs px-1.5 py-0.5 rounded-full", statusBadgeClasses)}>{statusText}</span>
                       </div>
                       <div className="flex items-center">
                         {getMethodIcon(fu.method)}
