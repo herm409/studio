@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -66,6 +67,7 @@ export default function ProspectDetailPage() {
 
   const [aiToneSuggestion, setAiToneSuggestion] = useState<SuggestFollowUpMessageOutput | null>(null);
   const [isToneLoading, setIsToneLoading] = useState(false);
+  const [prospectObjections, setProspectObjections] = useState<string>('');
   const [aiScheduleSuggestion, setAiScheduleSuggestion] = useState<ScheduleFollowUpOutput | null>(null);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const [aiToolSuggestions, setAiToolSuggestions] = useState<SuggestToolsOutput | null>(null);
@@ -183,6 +185,7 @@ export default function ProspectDetailPage() {
         previousInteractions: prospect.interactionHistory.map(i => `${format(parseISO(i.date), 'PPp')}: ${i.summary} (${i.outcome || 'no outcome'})`).join('\n'),
         followUpNumber: prospect.scheduledFollowUps.filter(f => f.status === 'Completed').length + 1,
         funnelStage: prospect.currentFunnelStage,
+        prospectObjections: prospectObjections,
       });
       setAiToneSuggestion(result);
       followUpForm.setValue('notes', result.content, { shouldValidate: true }); // Pre-fill notes
@@ -249,7 +252,7 @@ export default function ProspectDetailPage() {
       <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6">
         <AiSuggestionCard
           title="AI Message Helper"
-          description="Get AI suggestions for follow-up tone and content."
+          description="Get AI suggestions for follow-up tone, content, and handling objections. Enter any objections below."
           buttonText="Suggest Message"
           onGenerate={generateToneSuggestion}
           isLoading={isToneLoading}
@@ -261,7 +264,20 @@ export default function ProspectDetailPage() {
             </>
           )}
           icon={MessageCircle}
-        />
+        >
+          {!aiToneSuggestion && (
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="prospectObjections">Prospect Objections (Optional)</Label>
+              <Textarea
+                id="prospectObjections"
+                placeholder="e.g., 'Price is too high', 'Not the right time'"
+                value={prospectObjections}
+                onChange={(e) => setProspectObjections(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+          )}
+        </AiSuggestionCard>
         <AiSuggestionCard
           title="AI Smart Scheduler"
           description="Let AI suggest an optimal follow-up schedule."

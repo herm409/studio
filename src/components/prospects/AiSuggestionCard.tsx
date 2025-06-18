@@ -12,6 +12,7 @@ interface AiSuggestionCardProps {
   isLoading: boolean;
   suggestionResult?: React.ReactNode;
   icon?: React.ElementType;
+  children?: React.ReactNode; // Added children prop
 }
 
 export function AiSuggestionCard({
@@ -22,6 +23,7 @@ export function AiSuggestionCard({
   isLoading,
   suggestionResult,
   icon: Icon = Lightbulb,
+  children, // Destructure children
 }: AiSuggestionCardProps) {
   return (
     <Card className="shadow-lg">
@@ -33,8 +35,9 @@ export function AiSuggestionCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
+        {children} {/* Render children here, before button or results */}
         {!suggestionResult && (
-          <Button onClick={onGenerate} disabled={isLoading} className="w-full">
+          <Button onClick={onGenerate} disabled={isLoading} className="w-full mt-4"> {/* Added mt-4 if children are present */}
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
