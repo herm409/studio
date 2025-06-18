@@ -145,7 +145,7 @@ export async function getProspects(): Promise<Prospect[]> {
   const q = query(
     collection(db, PROSPECTS_COLLECTION), 
     where('userId', '==', userId)
-    // Removed isArchived filter here, will filter client-side
+    // Removed isArchived filter and orderBy for now to simplify and avoid index issues
   );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
@@ -154,7 +154,7 @@ export async function getProspects(): Promise<Prospect[]> {
     const data = prospectDoc.data() as ProspectDocData;
 
     // Client-side filter for archived prospects
-    if (data.isArchived === true) {
+    if (data.isArchived === true) { // Only skip if explicitly true
       continue;
     }
 
@@ -163,8 +163,9 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof (rawLCD as any).toDate === 'function') { 
-            lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
+        } else if (rawLCD && 'toDate' in rawLCD && typeof (rawLCD as any).toDate === 'function') { 
+            const tempTimestamp = rawLCD as Timestamp;
+            lastContactedDateValue = tempTimestamp.toDate().toISOString();
         }
     }
 
@@ -173,12 +174,12 @@ export async function getProspects(): Promise<Prospect[]> {
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD.split('T')[0];
-        } else if (rawNFD && typeof (rawNFD as any).toDate === 'function') { 
-             nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
+        } else if (rawNFD && 'toDate' in rawNFD && typeof (rawNFD as any).toDate === 'function') { 
+             const tempTimestamp = rawNFD as Timestamp;
+             nextFollowUpDateValue = tempTimestamp.toDate().toISOString().split('T')[0];
         }
     }
     
-    // If still undefined and not explicitly archived in DB (though we filter out archived above), calculate
     if (nextFollowUpDateValue === undefined) { 
         nextFollowUpDateValue = await calculateNextFollowUpDate(prospectDoc.id, userId);
     }
@@ -197,7 +198,7 @@ export async function getProspects(): Promise<Prospect[]> {
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: [], 
-      isArchived: data.isArchived === true, // Will be false for those passing the filter
+      isArchived: Boolean(data.isArchived),
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
@@ -218,10 +219,6 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     const data = prospectDocSnap.data() as ProspectDocData;
     if (data.userId !== userId) return undefined;
 
-    // If explicitly archived, don't return from this function unless a specific "getArchived" is used
-    // However, for now, if it's fetched by ID, we return it, the UI might want to display it (e.g. if linked directly)
-    // The list view (getProspects) will filter out archived ones.
-
     const interactionsQuery = query(
       collection(db, INTERACTIONS_COLLECTION),
       where('prospectId', '==', id),
@@ -240,8 +237,9 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof (rawLCD as any).toDate === 'function') { 
-            lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
+        } else if (rawLCD && 'toDate' in rawLCD && typeof (rawLCD as any).toDate === 'function') { 
+            const tempTimestamp = rawLCD as Timestamp;
+            lastContactedDateValue = tempTimestamp.toDate().toISOString();
         }
     }
 
@@ -250,8 +248,9 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD.split('T')[0];
-        } else if (rawNFD && typeof (rawNFD as any).toDate === 'function') {
-             nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
+        } else if (rawNFD && 'toDate' in rawNFD && typeof (rawNFD as any).toDate === 'function') {
+             const tempTimestamp = rawNFD as Timestamp;
+             nextFollowUpDateValue = tempTimestamp.toDate().toISOString().split('T')[0];
         }
     }
 
@@ -273,7 +272,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: interactionHistory,
-      isArchived: data.isArchived === true, 
+      isArchived: Boolean(data.isArchived),
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
@@ -417,12 +416,12 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
   if (rawNFDAfterUpdate) {
       if (typeof rawNFDAfterUpdate === 'string') {
           currentStoredNextFollowUp = rawNFDAfterUpdate.split('T')[0]; 
-      } else if (rawNFDAfterUpdate && typeof (rawNFDAfterUpdate as any).toDate === 'function') {
-          currentStoredNextFollowUp = (rawNFDAfterUpdate as Timestamp).toDate().toISOString().split('T')[0];
+      } else if (rawNFDAfterUpdate && 'toDate' in rawNFDAfterUpdate && typeof (rawNFDAfterUpdate as any).toDate === 'function') {
+          const tempTimestamp = rawNFDAfterUpdate as Timestamp;
+          currentStoredNextFollowUp = tempTimestamp.toDate().toISOString().split('T')[0];
       }
   }
 
-  // Only update if calculated date differs from stored date, or if it needs to be cleared
   if (updatedNextFollowUpDate !== currentStoredNextFollowUp || (finalProspectDataAfterUpdate.isArchived === true && currentStoredNextFollowUp !== undefined)) {
       await updateDoc(prospectDocRef, { nextFollowUpDate: updatedNextFollowUpDate || deleteField() });
   }
@@ -833,5 +832,7 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
     currentFollowUpStreak,
   };
 }
+
+    
 
     
