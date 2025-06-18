@@ -326,8 +326,8 @@ export default function ProspectDetailPage() {
           suggestionResult={aiToneSuggestion && (
             <>
               <div><strong>Tone:</strong> <Badge variant="outline">{aiToneSuggestion.tone}</Badge></div>
-              <div className="whitespace-pre-wrap"><strong>Content:</strong> <em>{aiToneSuggestion.content}</em></div>
-              {aiToneSuggestion.suggestedTool && <div><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</div>}
+              <div className="whitespace-pre-wrap break-words"><strong>Content:</strong> <em>{aiToneSuggestion.content}</em></div>
+              {aiToneSuggestion.suggestedTool && <div className="break-words"><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</div>}
             </>
           )}
           icon={MessageCircle}
@@ -358,11 +358,11 @@ export default function ProspectDetailPage() {
                 {aiScheduleSuggestion.followUpSchedule.map((fu, idx) => (
                   <li key={idx} className="p-2 border rounded-md bg-background/70">
                     <div className="font-medium">{format(parseISO(fu.date), "MMM d, yyyy")} at {fu.time} ({fu.method})</div>
-                    <p className="text-xs text-muted-foreground">{fu.notes}</p>
+                    <p className="text-xs text-muted-foreground break-words">{fu.notes}</p>
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-xs text-muted-foreground italic"><strong>Reasoning:</strong> {aiScheduleSuggestion.reasoning}</p>
+              <p className="mt-2 text-xs text-muted-foreground italic break-words"><strong>Reasoning:</strong> {aiScheduleSuggestion.reasoning}</p>
               {aiScheduleSuggestion.followUpSchedule.length > 0 && (
                 <Button 
                   onClick={handleApplySchedule} 
@@ -388,14 +388,14 @@ export default function ProspectDetailPage() {
             <ul className="space-y-3">
               {aiToolSuggestions.toolSuggestions.map((tool, idx) => (
                 <li key={idx} className="p-2 border rounded-md bg-background">
-                  <div className="font-semibold flex items-center">
-                    {tool.toolType === 'Prospect by LegalShield' && <Video className="w-4 h-4 mr-1.5 text-blue-500"/>}
-                    {tool.toolType === 'Live Presentation' && <Presentation className="w-4 h-4 mr-1.5 text-purple-500"/>}
-                    {tool.toolType === '3-way call' && <Phone className="w-4 h-4 mr-1.5 text-green-500"/>}
-                    {tool.toolName} <Badge variant="secondary" className="ml-2">{tool.toolType}</Badge>
+                  <div className="font-semibold flex items-center break-words">
+                    {tool.toolType === 'Prospect by LegalShield' && <Video className="w-4 h-4 mr-1.5 text-blue-500 shrink-0"/>}
+                    {tool.toolType === 'Live Presentation' && <Presentation className="w-4 h-4 mr-1.5 text-purple-500 shrink-0"/>}
+                    {tool.toolType === '3-way call' && <Phone className="w-4 h-4 mr-1.5 text-green-500 shrink-0"/>}
+                    {tool.toolName} <Badge variant="secondary" className="ml-2 shrink-0">{tool.toolType}</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{tool.reasoning}</p>
-                  {tool.details && <div className="text-xs text-accent flex items-center"><ExternalLink className="w-3 h-3 mr-1"/> {tool.details}</div>}
+                  <p className="text-xs text-muted-foreground break-words">{tool.reasoning}</p>
+                  {tool.details && <div className="text-xs text-accent flex items-center break-words"><ExternalLink className="w-3 h-3 mr-1 shrink-0"/> {tool.details}</div>}
                 </li>
               ))}
             </ul>
@@ -488,8 +488,8 @@ export default function ProspectDetailPage() {
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
                         <div className="font-semibold text-blue-700">AI Suggestion:</div>
                         <div><strong>Tone:</strong> {aiToneSuggestion.tone}</div>
-                        <div className="mt-1"><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></div>
-                        {aiToneSuggestion.suggestedTool && <div className="mt-1"><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</div>}
+                        <div className="mt-1 break-words"><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></div>
+                        {aiToneSuggestion.suggestedTool && <div className="mt-1 break-words"><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</div>}
                     </div>
                     )}
                   <div className="flex items-end gap-2">

@@ -49,14 +49,14 @@ export function ProspectDetailCard({ prospect }: ProspectDetailCardProps) {
         </div>
         <div>
           <h3 className="text-lg font-semibold mb-2 font-headline">Initial Data & Notes</h3>
-          <p className="text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-md border">
+          <p className="text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-md border break-words">
             {prospect.initialData}
           </p>
         </div>
          {prospect.colorCodeReasoning && (
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground">Color Code Reasoning:</h3>
-            <p className="text-xs text-muted-foreground italic">{prospect.colorCodeReasoning}</p>
+            <p className="text-xs text-muted-foreground italic break-words">{prospect.colorCodeReasoning}</p>
           </div>
         )}
         <div className="grid md:grid-cols-2 gap-4 text-sm">

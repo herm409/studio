@@ -152,7 +152,7 @@ export default function CalendarPage() {
                            <AvatarImage src={prospect?.avatarUrl || `https://placehold.co/40x40.png?text=${prospect?.name?.charAt(0) || 'P'}`} alt={prospect?.name} data-ai-hint="person face" />
                            <AvatarFallback>{prospect?.name?.charAt(0) || 'P'}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0"> {/* Added min-w-0 */}
                           <div className="flex justify-between items-center">
                             <h4 className="font-semibold text-md">{prospect?.name || 'Unknown Prospect'}</h4>
                              <Badge variant={isOverdue ? "destructive" : "outline"} className="text-xs">{isOverdue ? "Overdue" : fu.status}</Badge>
@@ -161,9 +161,9 @@ export default function CalendarPage() {
                             {getMethodIcon(fu.method)}
                             {fu.method} at {fu.time}
                           </p>
-                          <p className="text-sm mt-1">{fu.notes}</p>
+                          <p className="text-sm mt-1 break-words">{fu.notes}</p>
                            {fu.aiSuggestedContent && (
-                            <p className="text-xs mt-1 italic text-primary">AI: {fu.aiSuggestedContent.substring(0,50)}...</p>
+                            <p className="text-xs mt-1 italic text-primary break-words">AI: {fu.aiSuggestedContent.substring(0,50)}...</p>
                            )}
                         </div>
                         <Button variant="outline" size="sm" asChild className="shrink-0">

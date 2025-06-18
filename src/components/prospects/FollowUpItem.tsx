@@ -67,15 +67,15 @@ export function FollowUpItem({ followUp, onEdit, onStatusChange, onDelete }: Fol
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-foreground mb-2">{followUp.notes}</p>
+        <p className="text-sm text-foreground mb-2 break-words">{followUp.notes}</p>
         {followUp.aiSuggestedContent && (
             <div className="my-2 p-2 border-l-2 border-primary bg-primary/10 rounded-r-md">
                 <p className="text-xs font-semibold text-primary">AI Suggested Content:</p>
-                <p className="text-xs text-primary/90 italic whitespace-pre-wrap">{followUp.aiSuggestedContent}</p>
+                <p className="text-xs text-primary/90 italic whitespace-pre-wrap break-words">{followUp.aiSuggestedContent}</p>
             </div>
         )}
         {followUp.aiSuggestedTool && (
-             <p className="text-xs text-muted-foreground">AI Suggested Tool: <span className="font-medium text-accent">{followUp.aiSuggestedTool}</span></p>
+             <p className="text-xs text-muted-foreground break-words">AI Suggested Tool: <span className="font-medium text-accent">{followUp.aiSuggestedTool}</span></p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
             {followUp.status === 'Pending' && (
