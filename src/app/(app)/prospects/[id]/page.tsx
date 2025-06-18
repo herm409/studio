@@ -201,15 +201,13 @@ export default function ProspectDetailPage() {
     if (!prospect) return;
     setIsToneLoading(true);
     try {
-      // Calculate the number of completed follow-ups based on the followUps state
       const completedFollowUpsCount = followUps.filter(f => f.status === 'Completed').length;
-      // The next follow-up number will be completed count + 1
       const nextFollowUpNumber = completedFollowUpsCount + 1;
 
       const result = await suggestFollowUpMessage({
         prospectData: prospect.initialData,
         previousInteractions: prospect.interactionHistory.map(i => `${format(parseISO(i.date), 'PPp')}: ${i.summary} (${i.outcome || 'no outcome'})`).join('\n'),
-        followUpNumber: nextFollowUpNumber, // Use the calculated next follow-up number
+        followUpNumber: nextFollowUpNumber, 
         funnelStage: prospect.currentFunnelStage,
         prospectObjections: prospectObjections,
       });
@@ -246,41 +244,30 @@ export default function ProspectDetailPage() {
   };
 
   const handleApplySchedule = async () => {
-    if (!prospect || !aiScheduleSuggestion || !aiScheduleSuggestion.followUpSchedule || aiScheduleSuggestion.followUpSchedule.length === 0) return;
+    if (!prospect || !aiScheduleSuggestion || !aiScheduleSuggestion.followUpSchedule || aiScheduleSuggestion.followUpSchedule.length === 0) {
+      toast({ title: "Info", description: "No AI schedule to apply or AI did not suggest any follow-ups.", variant: "default" });
+      return;
+    }
     setIsApplyingScheduleLoading(true);
     try {
-      let allAddedSuccessfully = true;
-      let addedCount = 0;
-      for (const suggestedFu of aiScheduleSuggestion.followUpSchedule) {
-        try {
-          await serverAddFollowUp({
-            prospectId: prospect.id,
-            method: suggestedFu.method as 'Email' | 'Call' | 'In-Person', 
-            date: suggestedFu.date, 
-            time: suggestedFu.time,
-            notes: suggestedFu.notes,
-            status: 'Pending',
-          });
-          addedCount++;
-        } catch (singleError) {
-          allAddedSuccessfully = false;
-          console.error("Failed to add one of the suggested follow-ups:", singleError);
-          toast({ title: "Error Adding Follow-up", description: `Could not add follow-up for ${suggestedFu.date}.`, variant: "destructive", duration: 5000 });
-        }
-      }
-
-      if (addedCount > 0 && allAddedSuccessfully) {
-        toast({ title: "Success", description: "AI suggested schedule applied. All follow-ups added." });
-      } else if (addedCount > 0 && !allAddedSuccessfully) {
-        toast({ title: "Partial Success", description: `${addedCount} follow-ups were added. Some failed. Check console.`, variant: "default" });
-      } else if (addedCount === 0 && !allAddedSuccessfully) {
-         toast({ title: "Error", description: "Could not apply any of the AI suggested follow-ups.", variant: "destructive" });
-      }
+      const firstSuggestedFu = aiScheduleSuggestion.followUpSchedule[0];
+      await serverAddFollowUp({
+        prospectId: prospect.id,
+        method: firstSuggestedFu.method as 'Email' | 'Call' | 'In-Person', 
+        date: firstSuggestedFu.date, 
+        time: firstSuggestedFu.time,
+        notes: firstSuggestedFu.notes,
+        status: 'Pending',
+      });
       
+      toast({ title: "Success", description: "Next suggested follow-up has been scheduled." });
       fetchProspectData(); 
-      setAiScheduleSuggestion(null); 
+      // Keep aiScheduleSuggestion so user can still see the roadmap, 
+      // or set to null if you want it to disappear after applying one.
+      // For now, let's keep it visible for reference until a new one is generated.
+      // setAiScheduleSuggestion(null); 
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to apply AI schedule.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to apply the next suggested follow-up.", variant: "destructive" });
     } finally {
       setIsApplyingScheduleLoading(false);
     }
@@ -351,13 +338,13 @@ export default function ProspectDetailPage() {
         </AiSuggestionCard>
         <AiSuggestionCard
           title="AI Smart Scheduler"
-          description="Let AI suggest an optimal follow-up schedule."
+          description="Let AI suggest an optimal follow-up schedule. Only the first step will be scheduled."
           buttonText="Suggest Schedule"
           onGenerate={generateScheduleSuggestion}
           isLoading={isScheduleLoading || isApplyingScheduleLoading}
           suggestionResult={aiScheduleSuggestion && (
             <>
-              <div className="font-semibold mb-1">Suggested Follow-ups:</div>
+              <div className="font-semibold mb-1">Suggested Follow-up Roadmap:</div>
               <ul className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
                 {aiScheduleSuggestion.followUpSchedule.map((fu, idx) => (
                   <li key={idx} className="p-2 border rounded-md bg-background/70">
@@ -375,7 +362,7 @@ export default function ProspectDetailPage() {
                   size="sm"
                 >
                   {isApplyingScheduleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListChecks className="mr-2 h-4 w-4" />}
-                  Apply This Schedule
+                  Apply Next Suggested Follow-Up
                 </Button>
               )}
             </>
@@ -567,4 +554,3 @@ export default function ProspectDetailPage() {
     </div>
   );
 }
-
