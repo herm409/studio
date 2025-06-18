@@ -94,6 +94,7 @@ const prompt = ai.definePrompt({
   Important Considerations for Your Suggestions:
   *   **Multiple Follow-Ups Per Step:** Recognize that a prospect might not move through a step after a single interaction. Your suggested schedule should reflect this by potentially including multiple follow-ups designed to achieve the goal of the current step in our 3-step process.
   *   **Purposeful Notes:** For each suggested follow-up in the 'followUpSchedule' array, the 'notes' field MUST clearly state the purpose of that specific follow-up and how it relates to moving the prospect through the Pique Interest, Full Presentation, or Third-Party Expert stages.
+  *   **Prioritize Quick Initial Follow-Up:** For the first one or two suggested follow-ups in the schedule, aim to schedule them within 24-48 hours of 'today' ({{{currentDate}}}), unless the 'Interaction History' or 'User Preferences' clearly indicates a specific later time requested by the prospect (e.g., 'prospect asked to call back next week', 'user prefers not to contact on weekends if initial contact is Friday'). The goal is to maintain momentum with fresh prospects.
 
   Follow-up Method Prioritization:
   1.  Primarily suggest 'Call' as the method for follow-ups.
