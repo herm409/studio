@@ -317,12 +317,12 @@ export default function ProspectDetailPage() {
             <ul className="space-y-3">
               {aiToolSuggestions.toolSuggestions.map((tool, idx) => (
                 <li key={idx} className="p-2 border rounded-md bg-background">
-                  <p className="font-semibold flex items-center">
+                  <div className="font-semibold flex items-center">
                     {tool.toolType === 'Prospect by LegalShield' && <Video className="w-4 h-4 mr-1.5 text-blue-500"/>}
                     {tool.toolType === 'Live Presentation' && <Presentation className="w-4 h-4 mr-1.5 text-purple-500"/>}
                     {tool.toolType === '3-way call' && <Phone className="w-4 h-4 mr-1.5 text-green-500"/>}
                     {tool.toolName} <Badge variant="secondary" className="ml-2">{tool.toolType}</Badge>
-                  </p>
+                  </div>
                   <p className="text-xs text-muted-foreground">{tool.reasoning}</p>
                   {tool.details && <p className="text-xs text-accent flex items-center"><ExternalLink className="w-3 h-3 mr-1"/> {tool.details}</p>}
                 </li>
