@@ -87,7 +87,14 @@ export default function ProspectDetailPage() {
 
   const [isUpdatingStage, setIsUpdatingStage] = useState(false); 
 
-  const interactionForm = useForm<InteractionFormData>({ resolver: zodResolver(interactionSchema), defaultValues: { type: 'Note', summary: '' } });
+  const interactionForm = useForm<InteractionFormData>({ 
+    resolver: zodResolver(interactionSchema), 
+    defaultValues: { 
+      type: 'Note', 
+      summary: '',
+      outcome: '' // Added default empty string for outcome
+    } 
+  });
   const followUpForm = useForm<FollowUpFormData>({ resolver: zodResolver(followUpSchema), defaultValues: { method: 'Email', time: '10:00', notes: '' } });
 
   useEffect(() => {
@@ -125,7 +132,7 @@ export default function ProspectDetailPage() {
       toast({ title: "Success", description: "Interaction logged." });
       fetchProspectData(); 
       setIsInteractionModalOpen(false);
-      interactionForm.reset();
+      interactionForm.reset({type: 'Note', summary: '', outcome: ''});
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to log interaction.", variant: "destructive" });
     }
@@ -143,23 +150,16 @@ export default function ProspectDetailPage() {
       status: 'Pending' as FollowUp['status'],
     };
     
-    // Conditionally add AI suggestion fields
     const aiTone = editingFollowUp?.aiSuggestedTone || aiToneSuggestion?.tone;
     const aiContent = editingFollowUp?.aiSuggestedContent || aiToneSuggestion?.content;
     const aiTool = editingFollowUp?.aiSuggestedTool || aiToneSuggestion?.suggestedTool;
 
     const followUpPayload: Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt' | 'userId'> = { ...followUpPayloadBase };
 
-    if (aiTone) {
-      followUpPayload.aiSuggestedTone = aiTone;
-    }
-    if (aiContent) {
-      followUpPayload.aiSuggestedContent = aiContent;
-    }
-    if (aiTool) {
-      followUpPayload.aiSuggestedTool = aiTool;
-    }
-
+    if (aiTone) followUpPayload.aiSuggestedTone = aiTone;
+    if (aiContent) followUpPayload.aiSuggestedContent = aiContent;
+    if (aiTool) followUpPayload.aiSuggestedTool = aiTool;
+    
     try {
       if (editingFollowUp) {
         await serverUpdateFollowUp(editingFollowUp.id, followUpPayload);
