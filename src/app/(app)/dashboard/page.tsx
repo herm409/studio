@@ -1,22 +1,65 @@
 
+"use client";
+
+import { useEffect, useState } from 'react';
 import { UpcomingFollowUps } from "@/components/dashboard/UpcomingFollowUps";
 import { getUpcomingFollowUps, getProspects, getGamificationStats, getAccountabilitySummaryData } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Target, Trophy, Share2, Send } from "lucide-react";
-import type { GamificationStats, AccountabilitySummaryData } from "@/types";
-import Link from "next/link"; // Added for potential future links, not strictly needed for SMS
+import { Target, Trophy, Share2, Send, Loader2 } from "lucide-react"; // Added Loader2
+import type { FollowUp, Prospect, GamificationStats, AccountabilitySummaryData } from "@/types";
+import Link from "next/link";
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
-export const dynamic = 'force-dynamic'; 
+// export const dynamic = 'force-dynamic'; // No longer needed for client component data fetching pattern
 
 const DAILY_PROSPECT_GOAL = 2; 
 
-export default async function DashboardPage() {
-  const upcomingFollowUpsData = await getUpcomingFollowUps(7);
-  const prospectsData = await getProspects();
-  const gamificationStats: GamificationStats = await getGamificationStats();
-  const accountabilityData: AccountabilitySummaryData = await getAccountabilitySummaryData();
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const [upcomingFollowUpsData, setUpcomingFollowUpsData] = useState<FollowUp[]>([]);
+  const [prospectsData, setProspectsData] = useState<Prospect[]>([]);
+  const [gamificationStats, setGamificationStats] = useState<GamificationStats | null>(null);
+  const [accountabilityData, setAccountabilityData] = useState<AccountabilitySummaryData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      if (!user) {
+        setIsLoading(false); // Stop loading if no user, though layout should prevent this page
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const [fuData, pData, gsData, adData] = await Promise.all([
+          getUpcomingFollowUps(7),
+          getProspects(),
+          getGamificationStats(),
+          getAccountabilitySummaryData()
+        ]);
+        setUpcomingFollowUpsData(fuData);
+        setProspectsData(pData);
+        setGamificationStats(gsData);
+        setAccountabilityData(adData);
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+        // Optionally, show a toast notification
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, [user]); // Reload data if user changes
+
+  if (isLoading || !gamificationStats || !accountabilityData) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-150px)]"> {/* Adjust height as needed */}
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   const dailyProspectProgress = Math.min((gamificationStats.dailyProspectsAdded / DAILY_PROSPECT_GOAL) * 100, 100);
   
@@ -71,7 +114,7 @@ Any tips for improvement?`;
               <p className="text-xs text-muted-foreground mt-1">Keep your follow-up streak going!</p>
             </div>
              <div className="text-center">
-                <p className="text-sm text-muted-foreground">More detailed stats on the <a href="/gamification" className="text-primary hover:underline">Gamification page</a>.</p>
+                <p className="text-sm text-muted-foreground">More detailed stats on the <Link href="/gamification" className="text-primary hover:underline">Gamification page</Link>.</p>
             </div>
           </CardContent>
         </Card>
