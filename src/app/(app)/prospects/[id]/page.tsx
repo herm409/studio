@@ -85,7 +85,7 @@ export default function ProspectDetailPage() {
   const [aiToolSuggestions, setAiToolSuggestions] = useState<SuggestToolsOutput | null>(null);
   const [isToolsLoading, setIsToolsLoading] = useState(false);
 
-  const [isUpdatingStage, setIsUpdatingStage] = useState(false); // New state for stage update
+  const [isUpdatingStage, setIsUpdatingStage] = useState(false); 
 
   const interactionForm = useForm<InteractionFormData>({ resolver: zodResolver(interactionSchema), defaultValues: { type: 'Note', summary: '' } });
   const followUpForm = useForm<FollowUpFormData>({ resolver: zodResolver(followUpSchema), defaultValues: { method: 'Email', time: '10:00', notes: '' } });
@@ -133,17 +133,32 @@ export default function ProspectDetailPage() {
   
   const handleSaveFollowUp = async (data: FollowUpFormData) => {
     if (!prospect || !user) return;
-    const followUpPayload = {
+
+    const followUpPayloadBase: Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'aiSuggestedTone' | 'aiSuggestedContent' | 'aiSuggestedTool'> = {
       prospectId: prospect.id,
       method: data.method,
       date: format(data.date, "yyyy-MM-dd"),
       time: data.time,
       notes: data.notes,
       status: 'Pending' as FollowUp['status'],
-      aiSuggestedTone: editingFollowUp?.aiSuggestedTone || aiToneSuggestion?.tone,
-      aiSuggestedContent: editingFollowUp?.aiSuggestedContent || aiToneSuggestion?.content,
-      aiSuggestedTool: editingFollowUp?.aiSuggestedTool || aiToneSuggestion?.suggestedTool,
     };
+    
+    // Conditionally add AI suggestion fields
+    const aiTone = editingFollowUp?.aiSuggestedTone || aiToneSuggestion?.tone;
+    const aiContent = editingFollowUp?.aiSuggestedContent || aiToneSuggestion?.content;
+    const aiTool = editingFollowUp?.aiSuggestedTool || aiToneSuggestion?.suggestedTool;
+
+    const followUpPayload: Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt' | 'userId'> = { ...followUpPayloadBase };
+
+    if (aiTone) {
+      followUpPayload.aiSuggestedTone = aiTone;
+    }
+    if (aiContent) {
+      followUpPayload.aiSuggestedContent = aiContent;
+    }
+    if (aiTool) {
+      followUpPayload.aiSuggestedTool = aiTool;
+    }
 
     try {
       if (editingFollowUp) {
@@ -264,10 +279,7 @@ export default function ProspectDetailPage() {
       
       toast({ title: "Success", description: "Next suggested follow-up has been scheduled." });
       fetchProspectData(); 
-      // Keep aiScheduleSuggestion so user can still see the roadmap, 
-      // or set to null if you want it to disappear after applying one.
-      // For now, let's keep it visible for reference until a new one is generated.
-      // setAiScheduleSuggestion(null); 
+      
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to apply the next suggested follow-up.", variant: "destructive" });
     } finally {
@@ -299,7 +311,7 @@ export default function ProspectDetailPage() {
     try {
       await serverUpdateProspect(prospect.id, { currentFunnelStage: newStage });
       toast({ title: "Success", description: `Prospect stage updated to "${newStage}".` });
-      fetchProspectData(); // This will re-fetch and update the prospect state including the new stage
+      fetchProspectData(); 
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to update prospect stage.", variant: "destructive" });
     } finally {
@@ -574,3 +586,4 @@ export default function ProspectDetailPage() {
     </div>
   );
 }
+
