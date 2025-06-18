@@ -145,7 +145,6 @@ export async function getProspects(): Promise<Prospect[]> {
   const q = query(
     collection(db, PROSPECTS_COLLECTION), 
     where('userId', '==', userId)
-    // Removed isArchived filter and orderBy for now to simplify and avoid index issues
   );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
@@ -153,8 +152,7 @@ export async function getProspects(): Promise<Prospect[]> {
   for (const prospectDoc of querySnapshot.docs) {
     const data = prospectDoc.data() as ProspectDocData;
 
-    // Client-side filter for archived prospects
-    if (data.isArchived === true) { // Only skip if explicitly true
+    if (data.isArchived === true) { 
       continue;
     }
 
@@ -621,6 +619,26 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
             
             await updateDoc(prospectDocToUpdateRef, prospectUpdatesForCounter);
         }
+        // Log interaction for completed follow-up
+        let interactionType: Interaction['type'] = 'Note';
+        switch (updatedFollowUpForGamification.method) {
+          case 'Call':
+            interactionType = 'Call';
+            break;
+          case 'Email':
+            interactionType = 'Email';
+            break;
+          case 'In-Person':
+            interactionType = 'Meeting';
+            break;
+        }
+        await addInteraction(originalFollowUpData.prospectId, {
+          prospectId: originalFollowUpData.prospectId,
+          date: new Date().toISOString(),
+          type: interactionType,
+          summary: `Completed Follow-Up: ${updatedFollowUpForGamification.notes}`,
+          outcome: 'Follow-up successfully completed.',
+        });
      }
   }
 
@@ -832,7 +850,3 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
     currentFollowUpStreak,
   };
 }
-
-    
-
-    
