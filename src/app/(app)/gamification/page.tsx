@@ -1,26 +1,38 @@
+
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Award, CalendarCheck, CheckCircle, Repeat, Star, Target, Trophy, Zap, Users } from "lucide-react";
 import type { GamificationStats } from '@/types';
-import { getGamificationStats } from '@/lib/data'; // Assuming this can be called client-side
+import { getGamificationStats } from '@/lib/data'; 
+import { useAuth } from '@/context/AuthContext';
 
 const DAILY_PROSPECT_GOAL = 5;
 const STREAK_MILESTONES = [5, 10, 25, 50, 100];
 
 export default function GamificationPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<GamificationStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // localStorage is client-side only
-    const loadedStats = getGamificationStats();
-    setStats(loadedStats);
-    setLoading(false);
-  }, []);
+    if (user) {
+      setLoading(true);
+      getGamificationStats().then(loadedStats => {
+        setStats(loadedStats);
+        setLoading(false);
+      }).catch(error => {
+        console.error("Error fetching gamification stats:", error);
+        setLoading(false);
+        // Optionally, show a toast or error message to the user
+      });
+    } else {
+      setLoading(false); // Not logged in, no stats to load
+    }
+  }, [user]);
 
-  if (loading || !stats) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Trophy className="h-12 w-12 animate-bounce text-primary" />
@@ -28,6 +40,25 @@ export default function GamificationPage() {
       </div>
     );
   }
+
+  if (!user) {
+     return (
+      <div className="flex justify-center items-center h-64">
+        <Trophy className="h-12 w-12 text-muted-foreground" />
+        <p className="ml-4 text-xl text-muted-foreground">Please log in to view gamification stats.</p>
+      </div>
+    );
+  }
+  
+  if (!stats) {
+     return (
+      <div className="flex justify-center items-center h-64">
+        <Trophy className="h-12 w-12 text-muted-foreground" />
+        <p className="ml-4 text-xl text-muted-foreground">No gamification data available yet.</p>
+      </div>
+    );
+  }
+
 
   const dailyProspectProgress = Math.min((stats.dailyProspectsAdded / DAILY_PROSPECT_GOAL) * 100, 100);
   const nextStreakMilestone = STREAK_MILESTONES.find(m => m > stats.followUpStreak) || STREAK_MILESTONES[STREAK_MILESTONES.length - 1];
@@ -108,7 +139,7 @@ export default function GamificationPage() {
               { title: "First Prospect", icon: Star, achieved: stats.totalOnTimeFollowUps > 0 || stats.totalMissedFollowUps > 0 || stats.dailyProspectsAdded > 0 }, // Simplified condition for demo
               { title: "5 Day Streak", icon: Zap, achieved: stats.followUpStreak >= 5 },
               { title: "Perfect Day", icon: CheckCircle, achieved: stats.dailyProspectsAdded >= DAILY_PROSPECT_GOAL },
-              { title: "10 Prospects Added", icon: Users, achieved: false }, // Placeholder
+              { title: "10 Prospects Added", icon: Users, achieved: false }, // Placeholder, would need total prospect count
               { title: "Power Hour", icon: Zap, achieved: false },
               { title: "Consistent Closer", icon: Trophy, achieved: stats.followUpStreak >= 25 },
             ].map(ach => (

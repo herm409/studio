@@ -6,15 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Clock, Mail, Phone, User, AlertTriangle, Info } from "lucide-react";
+import { CalendarDays, Clock, Mail, Phone, User, AlertTriangle, Info, Loader2 } from "lucide-react";
 import type { FollowUp, Prospect } from '@/types';
-import { getUpcomingFollowUps, getProspects } from "@/lib/data"; // Using getUpcomingFollowUps to fetch for a long period
+import { getUpcomingFollowUps, getProspects } from "@/lib/data"; 
 import { format, parseISO, isSameDay, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 
-const getMethodIcon = (method: FollowUp['method']) => {
+const getMethodIcon = (method?: FollowUp['method']) => {
   switch(method) {
     case 'Email': return <Mail className="w-4 h-4 mr-2 text-muted-foreground" />;
     case 'Call': return <Phone className="w-4 h-4 mr-2 text-muted-foreground" />;
@@ -24,6 +25,7 @@ const getMethodIcon = (method: FollowUp['method']) => {
 };
 
 export default function CalendarPage() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [allFollowUps, setAllFollowUps] = useState<FollowUp[]>([]);
   const [prospectsMap, setProspectsMap] = useState<Map<string, Prospect>>(new Map());
@@ -31,23 +33,32 @@ export default function CalendarPage() {
 
   useEffect(() => {
     async function loadData() {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
-        // Fetch follow-ups for a long period, e.g., 1 year
-        const fuData = await getUpcomingFollowUps(365); 
-        const pData = await getProspects();
+        // Fetch follow-ups for a long period, e.g., 1 year (365 days)
+        // getUpcomingFollowUps should ideally fetch ALL pending follow-ups for the user,
+        // or be adapted to fetch for a very wide range.
+        // For Firestore, this might mean querying all follow-ups for the user.
+        const fuData = await getUpcomingFollowUps(365 * 5); // Fetch for 5 years to get most FUs
+        const pData = await getProspects(); // Fetches prospects for the current user
+        
         setAllFollowUps(fuData);
         const map = new Map<string, Prospect>();
         pData.forEach(p => map.set(p.id, p));
         setProspectsMap(map);
       } catch (error) {
         console.error("Failed to load calendar data:", error);
+        // Add toast notification for error
       } finally {
         setIsLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [user]);
 
   const followUpDays = useMemo(() => {
     return allFollowUps.map(fu => parseISO(fu.date));
@@ -74,6 +85,28 @@ export default function CalendarPage() {
       color: 'hsl(var(--primary-foreground))',
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-4 text-muted-foreground">Loading calendar...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">Please log in to view your calendar.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
 
   return (
@@ -102,9 +135,7 @@ export default function CalendarPage() {
             <h3 className="text-xl font-semibold font-headline">
               {selectedDate ? `Follow-Ups for ${format(selectedDate, "PPP")}` : "Select a date to view follow-ups"}
             </h3>
-            {isLoading ? (
-              <p>Loading follow-ups...</p>
-            ) : followUpsForSelectedDate.length > 0 ? (
+            {followUpsForSelectedDate.length > 0 ? (
               <ul className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                 {followUpsForSelectedDate.map(fu => {
                   const prospect = prospectsMap.get(fu.prospectId);
@@ -113,7 +144,7 @@ export default function CalendarPage() {
                     <li key={fu.id} className={cn("p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow", isOverdue && "border-destructive bg-destructive/10")}>
                       <div className="flex items-start gap-3">
                         <Avatar className="h-10 w-10 border mt-1">
-                           <AvatarImage src={prospect?.avatarUrl} alt={prospect?.name} data-ai-hint="person face" />
+                           <AvatarImage src={prospect?.avatarUrl || `https://placehold.co/40x40.png?text=${prospect?.name?.charAt(0) || 'P'}`} alt={prospect?.name} data-ai-hint="person face" />
                            <AvatarFallback>{prospect?.name?.charAt(0) || 'P'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
@@ -156,4 +187,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-

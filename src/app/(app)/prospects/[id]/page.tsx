@@ -3,7 +3,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Prospect, Interaction, FollowUp, FunnelStageType } from '@/types';
-import { getProspectById, getFollowUpsForProspect, addInteraction as serverAddInteraction, addFollowUp as serverAddFollowUp, updateFollowUp as serverUpdateFollowUp, updateProspect as serverUpdateProspect } from '@/lib/data';
+import { 
+  getProspectById, 
+  getFollowUpsForProspect, 
+  addInteraction as serverAddInteraction, 
+  addFollowUp as serverAddFollowUp, 
+  updateFollowUp as serverUpdateFollowUp, 
+  updateProspect as serverUpdateProspect 
+} from '@/lib/data';
 import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -21,6 +28,7 @@ import { ProspectDetailCard } from '@/components/prospects/ProspectDetailCard';
 import { InteractionCard } from '@/components/prospects/InteractionCard';
 import { FollowUpItem } from '@/components/prospects/FollowUpItem';
 import { AiSuggestionCard } from '@/components/prospects/AiSuggestionCard';
+import { useAuth } from '@/context/AuthContext';
 
 import { suggestFollowUpMessage } from '@/ai/flows/suggest-follow-up-message';
 import type { SuggestFollowUpMessageOutput } from '@/ai/flows/suggest-follow-up-message';
@@ -54,10 +62,12 @@ export default function ProspectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const prospectId = params.id as string;
 
   const [prospect, setProspect] = useState<Prospect | null>(null);
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  // Interactions are now part of prospect object after fetch
+  // const [interactions, setInteractions] = useState<Interaction[]>([]); 
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -77,48 +87,52 @@ export default function ProspectDetailPage() {
   const followUpForm = useForm<FollowUpFormData>({ resolver: zodResolver(followUpSchema), defaultValues: { method: 'Email', time: '10:00', notes: '' } });
 
   useEffect(() => {
-    if (prospectId) {
+    if (prospectId && user) { // Ensure user is available for data fetching
       fetchProspectData();
     }
-  }, [prospectId]);
+  }, [prospectId, user]); // Add user to dependency array
   
   const fetchProspectData = async () => {
+    if (!user) return; // Should be handled by AuthenticatedLayout, but good for safety
     setIsLoading(true);
     try {
       const [pData, fuData] = await Promise.all([
-        getProspectById(prospectId),
-        getFollowUpsForProspect(prospectId)
+        getProspectById(prospectId), // Assumes getProspectById is adapted for Firebase and userId
+        getFollowUpsForProspect(prospectId) // Assumes this is also adapted
       ]);
       if (pData) {
         setProspect(pData);
-        setInteractions(pData.interactionHistory.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() ));
+        // Interactions are now part of pData.interactionHistory
         setFollowUps(fuData.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime() ));
       } else {
-        toast({ title: "Error", description: "Prospect not found.", variant: "destructive" });
+        toast({ title: "Error", description: "Prospect not found or not authorized.", variant: "destructive" });
         router.push('/prospects');
       }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to load prospect data.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to load prospect data.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleAddInteraction = async (data: InteractionFormData) => {
-    if (!prospect) return;
+    if (!prospect || !user) return;
     try {
+      // serverAddInteraction now takes prospectId and interaction data
+      // userId is handled within serverAddInteraction using useAuth or passed if needed
       await serverAddInteraction(prospect.id, { ...data, date: new Date().toISOString() });
       toast({ title: "Success", description: "Interaction logged." });
       fetchProspectData(); 
       setIsInteractionModalOpen(false);
       interactionForm.reset();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to log interaction.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to log interaction.", variant: "destructive" });
     }
   };
   
   const handleSaveFollowUp = async (data: FollowUpFormData) => {
-    if (!prospect) return;
+    if (!prospect || !user) return;
+    // userId handled by serverAddFollowUp/serverUpdateFollowUp
     const followUpPayload = {
       prospectId: prospect.id,
       method: data.method,
@@ -144,8 +158,8 @@ export default function ProspectDetailPage() {
       followUpForm.reset({ method: 'Email', time: '10:00', notes: '' });
       setEditingFollowUp(null);
       setAiToneSuggestion(null); 
-    } catch (error) {
-      toast({ title: "Error", description: `Failed to ${editingFollowUp ? 'update' : 'schedule'} follow-up.`, variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || `Failed to ${editingFollowUp ? 'update' : 'schedule'} follow-up.`, variant: "destructive" });
     }
   };
 
@@ -167,11 +181,11 @@ export default function ProspectDetailPage() {
 
   const handleFollowUpStatusChange = async (followUpId: string, status: FollowUp['status']) => {
     try {
-      await serverUpdateFollowUp(followUpId, { status });
+      await serverUpdateFollowUp(followUpId, { status }); // userId handled by serverUpdateFollowUp
       toast({ title: "Success", description: `Follow-up marked as ${status}.` });
       fetchProspectData();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to update follow-up status.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update follow-up status.", variant: "destructive" });
     }
   };
 
@@ -179,17 +193,19 @@ export default function ProspectDetailPage() {
     if (!prospect) return;
     setIsToneLoading(true);
     try {
+      // Determine follow-up number based on completed follow-ups for this prospect
+      const completedFollowUpsCount = followUps.filter(f => f.status === 'Completed').length;
       const result = await suggestFollowUpMessage({
         prospectData: prospect.initialData,
         previousInteractions: prospect.interactionHistory.map(i => `${format(parseISO(i.date), 'PPp')}: ${i.summary} (${i.outcome || 'no outcome'})`).join('\n'),
-        followUpNumber: prospect.scheduledFollowUps.filter(f => f.status === 'Completed').length + 1,
+        followUpNumber: completedFollowUpsCount + 1,
         funnelStage: prospect.currentFunnelStage,
         prospectObjections: prospectObjections,
       });
       setAiToneSuggestion(result);
       followUpForm.setValue('notes', result.content, { shouldValidate: true }); 
-    } catch (error) {
-      toast({ title: "AI Error", description: "Failed to get tone suggestion.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "AI Error", description: error.message || "Failed to get tone suggestion.", variant: "destructive" });
     } finally {
       setIsToneLoading(false);
     }
@@ -206,8 +222,8 @@ export default function ProspectDetailPage() {
         userPreferences: "Prefer morning follow-ups, avoid Mondays.", 
       });
       setAiScheduleSuggestion(result);
-    } catch (error) {
-      toast({ title: "AI Error", description: "Failed to get schedule suggestion.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "AI Error", description: error.message || "Failed to get schedule suggestion.", variant: "destructive" });
     } finally {
       setIsScheduleLoading(false);
     }
@@ -224,15 +240,16 @@ export default function ProspectDetailPage() {
         previousInteractions: prospect.interactionHistory.map(i => i.summary).join('; '),
       });
       setAiToolSuggestions(result);
-    } catch (error) {
-      toast({ title: "AI Error", description: "Failed to get tool suggestions.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "AI Error", description: error.message || "Failed to get tool suggestions.", variant: "destructive" });
     } finally {
       setIsToolsLoading(false);
     }
   };
   
+  // Interactions are now directly on prospect object
   const sortedInteractions = useMemo(() => 
-    prospect?.interactionHistory.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() ) || [], 
+    prospect?.interactionHistory?.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() ) || [], 
   [prospect?.interactionHistory]);
 
   const sortedFollowUps = useMemo(() =>
@@ -241,7 +258,7 @@ export default function ProspectDetailPage() {
 
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading prospect details...</span></div>;
-  if (!prospect) return <p>Prospect not found.</p>;
+  if (!prospect) return <p className="text-center text-muted-foreground">Prospect not found or you might not have access.</p>;
 
   return (
     <div className="space-y-8">
@@ -358,7 +375,10 @@ export default function ProspectDetailPage() {
                   )} />
                   <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                    <Button type="submit">Save Interaction</Button>
+                    <Button type="submit" disabled={interactionForm.formState.isSubmitting}>
+                        {interactionForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Interaction
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -445,7 +465,10 @@ export default function ProspectDetailPage() {
                   )} />
                   <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                    <Button type="submit">{editingFollowUp ? "Save Changes" : "Schedule"}</Button>
+                    <Button type="submit" disabled={followUpForm.formState.isSubmitting}>
+                        {followUpForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {editingFollowUp ? "Save Changes" : "Schedule"}
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>
