@@ -28,7 +28,7 @@ export default function ProspectsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("name-asc");
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
-  const [filterStage, setFilterStage] = useState<string>(""); // Store stage number as string
+  const [filterStage, setFilterStage] = useState<string>(""); // Store stage number as string, "" or "all" for no filter
 
   useEffect(() => {
     async function loadProspects() {
@@ -68,12 +68,12 @@ export default function ProspectsPage() {
         if (!p.nextFollowUpDate) return false;
         const nextFollowUp = parseISO(p.nextFollowUpDate);
         // Assuming nextFollowUpDate is for a 'Pending' task. If it's past, it's overdue.
-        return isValid(nextFollowUp) && isPast(nextFollowUp);
+        return isValid(nextFollowUp) && isPast(nextFollowUp) && !isToday(nextFollowUp); // Added !isToday to avoid marking today's tasks as overdue
       });
     }
     
     // Filter: Stage Number
-    if (filterStage) {
+    if (filterStage && filterStage !== "all") { // Updated condition to check for "all"
         const stageNum = parseInt(filterStage, 10);
         prospects = prospects.filter(p => p.followUpStageNumber === stageNum);
     }
@@ -183,7 +183,7 @@ export default function ProspectsPage() {
                         <SelectValue placeholder="Stage (1-12)" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All Stages</SelectItem>
+                        <SelectItem value="all">All Stages</SelectItem>
                         {Array.from({length: 12}, (_, i) => i + 1).map(stageNum => (
                             <SelectItem key={stageNum} value={String(stageNum)}>Stage {stageNum}</SelectItem>
                         ))}
@@ -218,7 +218,7 @@ export default function ProspectsPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredAndSortedProspects.map(prospect => {
-            const isOverdue = prospect.nextFollowUpDate && isValid(parseISO(prospect.nextFollowUpDate)) && isPast(parseISO(prospect.nextFollowUpDate));
+            const isOverdue = prospect.nextFollowUpDate && isValid(parseISO(prospect.nextFollowUpDate)) && isPast(parseISO(prospect.nextFollowUpDate)) && !isToday(parseISO(prospect.nextFollowUpDate));
             return (
               <Card key={prospect.id} className={`flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 ${isOverdue ? 'border-destructive' : ''}`}>
                 <CardHeader className="pb-4">
@@ -237,12 +237,12 @@ export default function ProspectsPage() {
                   </div>
                   {prospect.phone && (
                     <div className="flex items-center space-x-2 mt-2">
-                       <Button variant="outline" size="sm" asChild className="flex-1">
+                       <Button variant="outline" size="xs" asChild className="flex-1">
                             <a href={`tel:${prospect.phone}`} aria-label={`Call ${prospect.name}`}>
                                 <Phone className="w-3.5 h-3.5 mr-1.5" /> Call
                             </a>
                         </Button>
-                        <Button variant="outline" size="sm" asChild className="flex-1">
+                        <Button variant="outline" size="xs" asChild className="flex-1">
                             <a href={`sms:${prospect.phone}`} aria-label={`Text ${prospect.name}`}>
                                 <MessageSquareText className="w-3.5 h-3.5 mr-1.5" /> Text
                             </a>
@@ -288,3 +288,4 @@ export default function ProspectsPage() {
     </div>
   );
 }
+
