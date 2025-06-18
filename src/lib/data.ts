@@ -8,7 +8,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
-  deleteDoc,
+  deleteDoc, // Added deleteDoc
   query,
   where,
   Timestamp,
@@ -16,7 +16,7 @@ import {
   limit,
   runTransaction,
   setDoc,
-  deleteField, // Import deleteField
+  deleteField,
 } from 'firebase/firestore';
 import { colorCodeProspect as genAIColorCodeProspect } from '@/ai/flows/color-code-prospect';
 
@@ -360,6 +360,30 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
     } as FollowUp;
 }
 
+export async function deleteFollowUp(followUpId: string): Promise<void> {
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error("User not authenticated");
+
+  const followUpDocRef = doc(db, FOLLOW_UPS_COLLECTION, followUpId);
+  const followUpSnap = await getDoc(followUpDocRef);
+
+  if (!followUpSnap.exists() || followUpSnap.data().userId !== userId) {
+    throw new Error("Follow-up not found or unauthorized");
+  }
+
+  const prospectId = followUpSnap.data().prospectId as string;
+
+  await deleteDoc(followUpDocRef);
+
+  // After deleting, recalculate nextFollowUpDate for the prospect
+  const prospectDocRef = doc(db, PROSPECTS_COLLECTION, prospectId);
+  const nextFollowUpDate = await calculateNextFollowUpDate(prospectId, userId);
+  await updateDoc(prospectDocRef, {
+    nextFollowUpDate: nextFollowUpDate || deleteField(),
+    updatedAt: Timestamp.now(),
+  });
+}
+
 export async function addInteraction(prospectId: string, interactionData: Omit<Interaction, 'id' | 'userId' | 'date'> & {date: string}): Promise<Interaction> {
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User not authenticated");
@@ -478,3 +502,4 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
+

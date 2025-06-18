@@ -3,14 +3,26 @@ import type { FollowUp } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarClock, Mail, Phone, User, CheckCircle, XCircle, AlertTriangle, Edit2 } from "lucide-react";
+import { CalendarClock, Mail, Phone, User, CheckCircle, XCircle, AlertTriangle, Edit2, Trash2 } from "lucide-react";
 import { format, parseISO, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface FollowUpItemProps {
   followUp: FollowUp;
   onEdit: (followUp: FollowUp) => void;
   onStatusChange: (followUpId: string, status: FollowUp['status']) => void;
+  onDelete: (followUpId: string) => void;
 }
 
 const getMethodIcon = (method: FollowUp['method']) => {
@@ -33,7 +45,7 @@ const getStatusBadgeVariant = (status: FollowUp['status'], date: string): "defau
   }
 };
 
-export function FollowUpItem({ followUp, onEdit, onStatusChange }: FollowUpItemProps) {
+export function FollowUpItem({ followUp, onEdit, onStatusChange, onDelete }: FollowUpItemProps) {
   const isOverdue = isPast(parseISO(followUp.date)) && followUp.status === 'Pending';
 
   return (
@@ -65,21 +77,44 @@ export function FollowUpItem({ followUp, onEdit, onStatusChange }: FollowUpItemP
         {followUp.aiSuggestedTool && (
              <p className="text-xs text-muted-foreground">AI Suggested Tool: <span className="font-medium text-accent">{followUp.aiSuggestedTool}</span></p>
         )}
-        {followUp.status === 'Pending' && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => onStatusChange(followUp.id, 'Completed')}>
-              <CheckCircle className="w-4 h-4 mr-1" /> Mark Completed
-            </Button>
-            {!isOverdue && (
-                 <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50" onClick={() => onStatusChange(followUp.id, 'Missed')}>
-                    <XCircle className="w-4 h-4 mr-1" /> Mark Missed
-                </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+            {followUp.status === 'Pending' && (
+                <>
+                    <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => onStatusChange(followUp.id, 'Completed')}>
+                        <CheckCircle className="w-4 h-4 mr-1" /> Mark Completed
+                    </Button>
+                    {!isOverdue && (
+                        <Button size="sm" variant="outline" className="text-red-500 border-red-500 hover:bg-red-50" onClick={() => onStatusChange(followUp.id, 'Missed')}>
+                            <XCircle className="w-4 h-4 mr-1" /> Mark Missed
+                        </Button>
+                    )}
+                </>
             )}
             <Button size="sm" variant="ghost" onClick={() => onEdit(followUp)}>
               <Edit2 className="w-4 h-4 mr-1" /> Edit
             </Button>
-          </div>
-        )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                  <Trash2 className="w-4 h-4 mr-1" /> Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete this follow-up.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(followUp.id)} className="bg-destructive hover:bg-destructive/90">
+                    Yes, delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </CardContent>
     </Card>
   );

@@ -9,7 +9,8 @@ import {
   addInteraction as serverAddInteraction, 
   addFollowUp as serverAddFollowUp, 
   updateFollowUp as serverUpdateFollowUp, 
-  updateProspect as serverUpdateProspect 
+  updateProspect as serverUpdateProspect,
+  deleteFollowUp as serverDeleteFollowUp // Import deleteFollowUp
 } from '@/lib/data';
 import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea';
@@ -186,6 +187,16 @@ export default function ProspectDetailPage() {
     }
   };
 
+  const handleDeleteFollowUp = async (followUpId: string) => {
+    try {
+      await serverDeleteFollowUp(followUpId);
+      toast({ title: "Success", description: "Follow-up deleted." });
+      fetchProspectData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete follow-up.", variant: "destructive" });
+    }
+  };
+
   const generateToneSuggestion = async () => {
     if (!prospect) return;
     setIsToneLoading(true);
@@ -299,7 +310,7 @@ export default function ProspectDetailPage() {
 
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading prospect details...</span></div>;
-  if (!prospect) return <p className="text-center text-muted-foreground">Prospect not found or you might not have access.</p>;
+  if (!prospect) return <div className="text-center text-muted-foreground">Prospect not found or you might not have access.</div>;
 
   return (
     <div className="space-y-8">
@@ -315,8 +326,8 @@ export default function ProspectDetailPage() {
           suggestionResult={aiToneSuggestion && (
             <>
               <div><strong>Tone:</strong> <Badge variant="outline">{aiToneSuggestion.tone}</Badge></div>
-              <div><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></div>
-              {aiToneSuggestion.suggestedTool && <p><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</p>}
+              <div className="whitespace-pre-wrap"><strong>Content:</strong> <em>{aiToneSuggestion.content}</em></div>
+              {aiToneSuggestion.suggestedTool && <div><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</div>}
             </>
           )}
           icon={MessageCircle}
@@ -342,7 +353,7 @@ export default function ProspectDetailPage() {
           isLoading={isScheduleLoading || isApplyingScheduleLoading}
           suggestionResult={aiScheduleSuggestion && (
             <>
-              <p className="font-semibold mb-1">Suggested Follow-ups:</p>
+              <div className="font-semibold mb-1">Suggested Follow-ups:</div>
               <ul className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
                 {aiScheduleSuggestion.followUpSchedule.map((fu, idx) => (
                   <li key={idx} className="p-2 border rounded-md bg-background/70">
@@ -451,7 +462,7 @@ export default function ProspectDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {sortedInteractions.length > 0 ? sortedInteractions.map(int => <InteractionCard key={int.id} interaction={int} />)
-            : <p className="text-muted-foreground">No interactions logged yet.</p>}
+            : <div className="text-muted-foreground">No interactions logged yet.</div>}
         </CardContent>
       </Card>
 
@@ -475,10 +486,10 @@ export default function ProspectDetailPage() {
                 <form onSubmit={followUpForm.handleSubmit(handleSaveFollowUp)} className="space-y-4 py-4">
                    {aiToneSuggestion && (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
-                        <p className="font-semibold text-blue-700">AI Suggestion:</p>
+                        <div className="font-semibold text-blue-700">AI Suggestion:</div>
                         <div><strong>Tone:</strong> {aiToneSuggestion.tone}</div>
-                        <p className="mt-1"><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></p>
-                        {aiToneSuggestion.suggestedTool && <p className="mt-1"><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</p>}
+                        <div className="mt-1"><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></div>
+                        {aiToneSuggestion.suggestedTool && <div className="mt-1"><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</div>}
                     </div>
                     )}
                   <div className="flex items-end gap-2">
@@ -545,10 +556,11 @@ export default function ProspectDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {sortedFollowUps.length > 0 ? sortedFollowUps.map(fu => (
-            <FollowUpItem key={fu.id} followUp={fu} onEdit={handleEditFollowUp} onStatusChange={handleFollowUpStatusChange} />
-          )) : <p className="text-muted-foreground">No follow-ups scheduled yet.</p>}
+            <FollowUpItem key={fu.id} followUp={fu} onEdit={handleEditFollowUp} onStatusChange={handleFollowUpStatusChange} onDelete={handleDeleteFollowUp} />
+          )) : <div className="text-muted-foreground">No follow-ups scheduled yet.</div>}
         </CardContent>
       </Card>
     </div>
   );
 }
+
