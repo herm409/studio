@@ -31,9 +31,9 @@ const prospectFormSchema = z.object({
   email: z.string().email("Invalid email address.").optional().or(z.literal('')),
   phone: z.string().optional().refine(val => !val || /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/.test(val), {
     message: "Invalid phone number format.",
-  }),
+  }).or(z.literal('')),
   initialData: z.string().min(5, "Initial data must be at least 5 characters.").max(500, "Initial data must be at most 500 characters."),
-  currentFunnelStage: z.enum(FunnelStages as [FunnelStageType, ...FunnelStageType[]], { 
+  currentFunnelStage: z.enum(FunnelStages as [FunnelStageType, ...FunnelStageType[]], {
     required_error: "Funnel stage is required.",
   }),
   followUpStageNumber: z.coerce.number().min(1).max(12, "Follow-up stage must be between 1 and 12."),
@@ -52,21 +52,23 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
   const router = useRouter();
   const { toast } = useToast();
 
-  const defaultValues: Partial<ProspectFormValues> = prospect
+  const defaultValues: ProspectFormValues = prospect
     ? {
         name: prospect.name,
-        email: prospect.email,
-        phone: prospect.phone,
+        email: prospect.email || "",
+        phone: prospect.phone || "",
         initialData: prospect.initialData,
         currentFunnelStage: prospect.currentFunnelStage,
         followUpStageNumber: prospect.followUpStageNumber,
-        avatarUrl: prospect.avatarUrl,
+        avatarUrl: prospect.avatarUrl || "",
       }
     : {
-        currentFunnelStage: "Prospect",
-        followUpStageNumber: 1,
+        name: "",
         email: "",
         phone: "",
+        initialData: "",
+        currentFunnelStage: "Prospect",
+        followUpStageNumber: 1,
         avatarUrl: "",
       };
 
@@ -214,11 +216,11 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 </FormItem>
               )}
             />
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3">
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3 pt-2">
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+              <Button type="submit" disabled={isSubmitting || !form.formState.isDirty && !!prospect} className="w-full sm:w-auto">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {prospect ? "Save Changes" : "Add Prospect"}
               </Button>
