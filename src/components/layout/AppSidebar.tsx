@@ -1,15 +1,16 @@
+
 import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, Users, CalendarDays, Settings, Trophy, Bot, GanttChartSquare } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation"; // Corrected import
+import { usePathname } from "next/navigation"; 
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/prospects", label: "Prospects", icon: Users },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays }, 
+  { href: "/calendar", label: "Calendar", icon: CalendarDays, disabled: false }, 
   { href: "/gamification", label: "Gamification", icon: Trophy },
-  { href: "/ai-tools", label: "AI Tools", icon: Bot }, 
+  { href: "/ai-tools", label: "AI Tools", icon: Bot, disabled: false }, 
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -28,7 +29,7 @@ export function AppSidebar() {
              <GanttChartSquare className="h-7 w-7 text-primary" />
            </Link>
         </div>
-        <div className="md:hidden"> {/* Only show trigger on mobile if sidebar is part of main layout */}
+        <div className="md:hidden"> 
            <SidebarTrigger />
         </div>
       </SidebarHeader>
@@ -40,11 +41,11 @@ export function AppSidebar() {
                 asChild
                 isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                 tooltip={item.label}
-                disabled={(item as any).disabled} // Retain disabled capability if explicitly set later
-                aria-disabled={(item as any).disabled}
-                className={cn((item as any).disabled && "cursor-not-allowed opacity-50")}
+                disabled={item.disabled} 
+                aria-disabled={item.disabled}
+                className={cn(item.disabled && "cursor-not-allowed opacity-50")}
               >
-                <Link href={(item as any).disabled ? "#" : item.href}>
+                <Link href={item.disabled ? "#" : item.href}>
                   <item.icon className="h-5 w-5" />
                   <span>{item.label}</span>
                 </Link>
@@ -59,3 +60,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
