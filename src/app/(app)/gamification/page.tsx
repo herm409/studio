@@ -68,7 +68,7 @@ export default function GamificationPage() {
     <div className="space-y-8">
       <header className="text-center">
         <Trophy className="mx-auto h-16 w-16 text-yellow-500 mb-2" />
-        <h1 className="text-4xl font-bold font-headline text-primary">Your Gamification Hub</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold font-headline text-primary">Your Gamification Hub</h1>
         <p className="text-lg text-muted-foreground mt-1">Track your progress, build streaks, and unlock achievements!</p>
       </header>
 
@@ -134,7 +134,7 @@ export default function GamificationPage() {
           <CardDescription>Milestones you've unlocked.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[
               { title: "First Prospect", icon: Star, achieved: stats.totalOnTimeFollowUps > 0 || stats.totalMissedFollowUps > 0 || stats.dailyProspectsAdded > 0 }, // Simplified condition for demo
               { title: "5 Day Streak", icon: Zap, achieved: stats.followUpStreak >= 5 },

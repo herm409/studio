@@ -334,14 +334,18 @@ export default function ProspectDetailPage() {
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
             <CardTitle className="font-headline text-xl">Interaction History</CardTitle>
             <CardDescription>Logged communications and notes.</CardDescription>
           </div>
           <Dialog open={isInteractionModalOpen} onOpenChange={setIsInteractionModalOpen}>
             <DialogTrigger asChild>
-              <Button><PlusCircle className="mr-2 h-4 w-4" /> Log Interaction</Button>
+              <Button className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Log Interaction</span>
+                <span className="sm:hidden">Log</span>
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Log New Interaction</DialogTitle></DialogHeader>
@@ -392,14 +396,18 @@ export default function ProspectDetailPage() {
       </Card>
 
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
             <CardTitle className="font-headline text-xl">Scheduled Follow-Ups</CardTitle>
             <CardDescription>Upcoming and past follow-up tasks.</CardDescription>
           </div>
           <Dialog open={isFollowUpModalOpen} onOpenChange={(isOpen) => { setIsFollowUpModalOpen(isOpen); if (!isOpen) { setEditingFollowUp(null); followUpForm.reset({ method: 'Email', time: '10:00', notes: '' }); setAiToneSuggestion(null); }}}>
             <DialogTrigger asChild>
-              <Button variant="default"><PlusCircle className="mr-2 h-4 w-4" /> Schedule Follow-Up</Button>
+              <Button variant="default" className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Schedule Follow-Up</span>
+                <span className="sm:hidden">Schedule</span>
+              </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader><DialogTitle>{editingFollowUp ? "Edit" : "Schedule New"} Follow-Up</DialogTitle></DialogHeader>

@@ -1,3 +1,4 @@
+
 import { getProspects } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +14,13 @@ export default async function ProspectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold font-headline">Your Prospects</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Your Prospects</h1>
         <Button asChild size="lg">
           <Link href="/prospects/add">
-            <PlusCircle className="mr-2 h-5 w-5" /> Add New Prospect
+            <PlusCircle className="mr-2 h-5 w-5" /> 
+            <span className="hidden sm:inline">Add New Prospect</span>
+            <span className="sm:hidden">Add Prospect</span>
           </Link>
         </Button>
       </div>

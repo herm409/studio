@@ -115,7 +115,7 @@ export default function CalendarPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CalendarDays className="h-7 w-7 text-primary" />
-            <CardTitle className="text-3xl font-bold font-headline">Calendar</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl font-bold font-headline">Calendar</CardTitle>
           </div>
           <CardDescription>View your scheduled follow-ups. Dates with follow-ups are highlighted.</CardDescription>
         </CardHeader>
@@ -125,7 +125,7 @@ export default function CalendarPage() {
               mode="single"
               selected={selectedDate}
               onSelect={setSelectedDate}
-              className="rounded-md border shadow-md p-0"
+              className="rounded-md border shadow-md p-0 w-full max-w-md"
               modifiers={calendarModifiers}
               modifiersStyles={calendarModifiersStyles}
               disabled={isLoading}

@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       <header>
-        <h1 className="text-3xl font-bold font-headline">Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Settings</h1>
         <p className="text-muted-foreground">Manage your application preferences and account details.</p>
       </header>
 

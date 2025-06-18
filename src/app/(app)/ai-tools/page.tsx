@@ -39,7 +39,7 @@ export default function AiToolsPage() {
     <div className="space-y-8">
       <header className="text-center">
         <Bot className="mx-auto h-16 w-16 text-primary mb-2" />
-        <h1 className="text-4xl font-bold font-headline text-primary">AI Tools Hub</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold font-headline text-primary">AI Tools Hub</h1>
         <p className="text-lg text-muted-foreground mt-1">
           Explore the AI-powered features designed to enhance your prospecting and follow-up efficiency.
         </p>
@@ -51,7 +51,7 @@ export default function AiToolsPage() {
             <CardHeader>
               <div className="flex items-center gap-3 mb-2">
                 <feature.icon className="h-8 w-8 text-accent" />
-                <CardTitle className="text-2xl font-headline">{feature.title}</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl font-headline">{feature.title}</CardTitle>
               </div>
               <CardDescription className="text-sm">{feature.description}</CardDescription>
             </CardHeader>
@@ -81,4 +81,3 @@ export default function AiToolsPage() {
     </div>
   );
 }
-

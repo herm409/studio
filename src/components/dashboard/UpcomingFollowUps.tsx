@@ -1,3 +1,4 @@
+
 "use client";
 import type { FollowUp, Prospect } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,21 +79,21 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
         <div className="space-y-4">
           {followUps.map(fu => (
             <Card key={fu.id} className={cn("p-4 hover:shadow-md transition-shadow", getUrgencyStyles(fu.date))}>
-              <div className="flex items-start space-x-4">
-                <Avatar className="h-10 w-10 border">
+              <div className="flex flex-col sm:flex-row items-start sm:space-x-4 gap-3 sm:gap-0">
+                <Avatar className="h-10 w-10 border shrink-0">
                   <AvatarImage src={getProspectAvatar(fu.prospectId)} alt={getProspectName(fu.prospectId)} data-ai-hint="person face"/>
                   <AvatarFallback>{getProspectName(fu.prospectId).charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                     <h4 className="font-semibold text-lg flex items-center">
+                     <h4 className="font-semibold text-md sm:text-lg flex items-center">
                         {getUrgencyIcon(fu.date)}
                         {getProspectName(fu.prospectId)}
                      </h4>
                      <ColorCodedIndicator colorCode={getProspectColorCode(fu.prospectId)} />
                   </div>
                   <p className="text-sm text-muted-foreground">{fu.notes}</p>
-                  <div className="flex items-center space-x-4 mt-2 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-2 text-sm gap-1 sm:gap-0">
                     <div className="flex items-center">
                       <CalendarClock className="w-4 h-4 mr-1 text-muted-foreground" />
                       <span>{format(parseISO(fu.date), 'EEE, MMM d')} at {fu.time}</span>
@@ -103,14 +104,14 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end space-y-2">
-                   <Button asChild variant="outline" size="sm">
+                <div className="flex flex-col items-stretch sm:items-end space-y-2 w-full sm:w-auto">
+                   <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
                      <Link href={`/prospects/${fu.prospectId}`}>
                        View Prospect <ArrowRight className="ml-2 h-4 w-4" />
                      </Link>
                    </Button>
                    {/* Placeholder for complete action */}
-                   <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50">
+                   <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50 w-full sm:w-auto justify-start sm:justify-center">
                      <CheckCircle className="mr-2 h-4 w-4" /> Mark Done
                    </Button>
                 </div>

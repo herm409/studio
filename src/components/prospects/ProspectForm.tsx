@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -213,11 +214,11 @@ export function ProspectForm({ prospect, onSubmit, isSubmitting }: ProspectFormP
                 </FormItem>
               )}
             />
-            <div className="flex justify-end space-x-3">
-              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3">
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {prospect ? "Save Changes" : "Add Prospect"}
               </Button>

@@ -1,3 +1,4 @@
+
 "use client";
 import type { Prospect } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -19,12 +20,12 @@ export function ProspectDetailCard({ prospect }: ProspectDetailCardProps) {
       <CardHeader className="border-b">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20 border-2 border-primary">
+            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border-2 border-primary">
               <AvatarImage src={prospect.avatarUrl} alt={prospect.name} data-ai-hint="person face"/>
-              <AvatarFallback className="text-2xl">{prospect.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="text-xl sm:text-2xl">{prospect.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-3xl font-headline flex items-center">
+              <CardTitle className="text-2xl sm:text-3xl font-headline flex items-center">
                 {prospect.name}
                 <ColorCodedIndicator colorCode={prospect.colorCode} size="lg" className="ml-3" />
               </CardTitle>
@@ -34,7 +35,7 @@ export function ProspectDetailCard({ prospect }: ProspectDetailCardProps) {
               </div>
             </div>
           </div>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="w-full md:w-auto">
             <Link href={`/prospects/${prospect.id}/edit`}> {/* Assuming an edit page route */}
               <Edit className="mr-2 h-4 w-4" /> Edit Prospect
             </Link>
