@@ -1,3 +1,4 @@
+
 "use client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,10 @@ export function AiSuggestionCard({
     <Card className="shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Icon className="w-6 h-6 text-primary" />
-          <CardTitle className="font-headline text-xl">{title}</CardTitle>
+          <Icon className="w-6 h-6 text-primary shrink-0" />
+          <CardTitle className="font-headline text-xl break-words min-w-0">{title}</CardTitle>
         </div>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="break-words">{description}</CardDescription>
       </CardHeader>
       <CardContent>
         {children} {/* Render children here, before button or results */}

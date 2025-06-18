@@ -235,14 +235,14 @@ export default function ProspectsPage() {
               <Card key={prospect.id} className={`flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 ${isOverdue ? 'border-destructive' : ''}`}>
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-12 w-12 border">
+                    <div className="flex items-center space-x-3 min-w-0"> {/* Added min-w-0 for the container of avatar and text */}
+                      <Avatar className="h-12 w-12 border shrink-0">
                         <AvatarImage src={prospect.avatarUrl} alt={prospect.name} data-ai-hint="person face"/>
                         <AvatarFallback>{prospect.name.charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <CardTitle className="text-lg font-headline">{prospect.name}</CardTitle>
-                        {prospect.email && <CardDescription className="text-xs flex items-center"><Mail className="w-3 h-3 mr-1"/>{prospect.email}</CardDescription>}
+                      <div className="min-w-0"> {/* Added min-w-0 here */}
+                        <CardTitle className="text-lg font-headline break-words">{prospect.name}</CardTitle>
+                        {prospect.email && <CardDescription className="text-xs flex items-center break-words"><Mail className="w-3 h-3 mr-1 shrink-0"/>{prospect.email}</CardDescription>}
                       </div>
                     </div>
                     <ColorCodedIndicator colorCode={prospect.colorCode} size="md" />
@@ -281,7 +281,7 @@ export default function ProspectsPage() {
                       )}
                       <div className="text-xs">Follow-Ups Done: <Badge variant="secondary" className="px-1.5 py-0 text-xs">{prospect.followUpStageNumber}</Badge></div>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2" title={prospect.initialData}>
+                  <p className="text-sm text-muted-foreground line-clamp-2 break-words" title={prospect.initialData}>
                     {prospect.initialData}
                   </p>
                 </CardContent>
@@ -300,6 +300,3 @@ export default function ProspectsPage() {
     </div>
   );
 }
-
-
-    

@@ -46,17 +46,17 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
   const getUrgencyIcon = (dateStr: string) => {
     if (!isValid(parseISO(dateStr))) return null;
     const date = parseISO(dateStr);
-    if (isPast(date) && !isToday(date)) return <AlertTriangle className="w-4 h-4 mr-1 text-destructive" />;
-    if (isToday(date)) return <AlertTriangle className="w-4 h-4 mr-1 text-yellow-500" />;
+    if (isPast(date) && !isToday(date)) return <AlertTriangle className="w-4 h-4 mr-1 text-destructive shrink-0" />;
+    if (isToday(date)) return <AlertTriangle className="w-4 h-4 mr-1 text-yellow-500 shrink-0" />;
     return null;
   };
   
   const getMethodIcon = (method?: FollowUp['method']) => {
     switch(method) {
-      case 'Email': return <Mail className="w-4 h-4 text-muted-foreground" />;
-      case 'Call': return <Phone className="w-4 h-4 text-muted-foreground" />;
-      case 'In-Person': return <User className="w-4 h-4 text-muted-foreground" />;
-      default: return <CalendarClock className="w-4 h-4 text-muted-foreground" />;
+      case 'Email': return <Mail className="w-4 h-4 text-muted-foreground shrink-0" />;
+      case 'Call': return <Phone className="w-4 h-4 text-muted-foreground shrink-0" />;
+      case 'In-Person': return <User className="w-4 h-4 text-muted-foreground shrink-0" />;
+      default: return <CalendarClock className="w-4 h-4 text-muted-foreground shrink-0" />;
     }
   };
 
@@ -82,18 +82,18 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                     <AvatarImage src={prospectAvatar} alt={prospectName} data-ai-hint="person face"/>
                     <AvatarFallback>{prospectName.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 min-w-0"> {/* Added min-w-0 here for flex child */}
+                  <div className="flex-1 min-w-0"> 
                     <div className="flex items-center justify-between">
-                       <h4 className="font-semibold text-md sm:text-lg flex items-center">
+                       <h4 className="font-semibold text-md sm:text-lg flex items-center min-w-0 break-words">
                           {getUrgencyIcon(fu.date)}
                           {prospectName}
                        </h4>
-                       <ColorCodedIndicator colorCode={prospectColorCode} />
+                       <ColorCodedIndicator colorCode={prospectColorCode} className="shrink-0" />
                     </div>
                     <p className="text-sm text-muted-foreground break-words">{fu.notes}</p>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-2 text-sm gap-1 sm:gap-0">
                       <div className="flex items-center">
-                        <CalendarClock className="w-4 h-4 mr-1 text-muted-foreground" />
+                        <CalendarClock className="w-4 h-4 mr-1 text-muted-foreground shrink-0" />
                         <span>{isValid(parseISO(fu.date)) ? format(parseISO(fu.date), 'EEE, MMM d') : 'Invalid Date'} at {fu.time}</span>
                       </div>
                       <div className="flex items-center">
@@ -116,7 +116,7 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                        </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-stretch sm:items-end space-y-2 w-full sm:w-auto shrink-0"> {/* Added shrink-0 */}
+                  <div className="flex flex-col items-stretch sm:items-end space-y-2 w-full sm:w-auto shrink-0"> 
                      <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
                        <Link href={`/prospects/${fu.prospectId}`}>
                          View Prospect <ArrowRight className="ml-2 h-4 w-4" />
