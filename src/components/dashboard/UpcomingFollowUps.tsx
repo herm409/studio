@@ -4,7 +4,7 @@ import type { FollowUp, Prospect } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, Mail, Phone, AlertTriangle, CheckCircle, User, ArrowRight, MessageSquareText } from 'lucide-react';
+import { CalendarClock, Mail, Phone, AlertTriangle, CheckCircle, User, ArrowRight, MessageSquareText, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO, isToday, isTomorrow, isPast, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -33,23 +33,6 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
   const getProspect = (prospectId: string) => {
     return prospects.find(p => p.id === prospectId);
   };
-
-  const getUrgencyStyles = (dateStr: string) => {
-    if (!isValid(parseISO(dateStr))) return "border-gray-300";
-    const date = parseISO(dateStr);
-    if (isPast(date) && !isToday(date)) return "border-destructive text-destructive";
-    if (isToday(date)) return "border-yellow-500 text-yellow-600";
-    if (isTomorrow(date)) return "border-blue-500 text-blue-600";
-    return "border-gray-300";
-  };
-
-  const getUrgencyIcon = (dateStr: string) => {
-    if (!isValid(parseISO(dateStr))) return null;
-    const date = parseISO(dateStr);
-    if (isPast(date) && !isToday(date)) return <AlertTriangle className="w-4 h-4 mr-1 text-destructive shrink-0" />;
-    if (isToday(date)) return <AlertTriangle className="w-4 h-4 mr-1 text-yellow-500 shrink-0" />;
-    return null;
-  };
   
   const getMethodIcon = (method?: FollowUp['method']) => {
     switch(method) {
@@ -75,8 +58,41 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
             const prospectColorCode = prospect?.colorCode;
             const prospectPhone = prospect?.phone;
 
+            const now = new Date();
+            const followUpDateTime = new Date(`${fu.date}T${fu.time}`);
+            
+            let urgencyStyles = "border-gray-300";
+            let urgencyIcon = null;
+            let statusText = "Scheduled"; // Default text for future items
+
+            if (fu.status === 'Pending') {
+                 if (followUpDateTime < now) {
+                    urgencyStyles = "border-destructive text-destructive";
+                    urgencyIcon = <AlertTriangle className="w-4 h-4 mr-1 text-destructive shrink-0" />;
+                    statusText = "Overdue";
+                } else {
+                    const hoursDiff = (followUpDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                    if (isToday(followUpDateTime) && hoursDiff <= 3 && hoursDiff >=0) {
+                        urgencyStyles = "border-accent text-accent-foreground"; // Teal for Due Soon
+                        urgencyIcon = <Clock className="w-4 h-4 mr-1 text-accent shrink-0" />;
+                        statusText = "Due Soon";
+                    } else if (isToday(followUpDateTime)) {
+                        urgencyStyles = "border-primary text-primary-foreground"; // Blue for Today
+                        urgencyIcon = <Clock className="w-4 h-4 mr-1 text-primary shrink-0" />;
+                        statusText = "Today";
+                    } else if (isTomorrow(followUpDateTime)) {
+                        urgencyStyles = "border-blue-500 text-blue-600"; // Existing tomorrow style
+                        statusText = "Tomorrow";
+                    }
+                }
+            } else {
+                // Handle completed/missed if they were to appear here, though query filters for 'Pending'
+                statusText = fu.status; 
+            }
+
+
             return (
-              <Card key={fu.id} className={cn("p-4 hover:shadow-md transition-shadow", getUrgencyStyles(fu.date))}>
+              <Card key={fu.id} className={cn("p-4 hover:shadow-md transition-shadow", urgencyStyles)}>
                 <div className="flex flex-col sm:flex-row items-start sm:space-x-4 gap-3 sm:gap-0">
                   <Avatar className="h-10 w-10 border shrink-0">
                     <AvatarImage src={prospectAvatar} alt={prospectName} data-ai-hint="person face"/>
@@ -85,7 +101,7 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                   <div className="flex-1 min-w-0"> 
                     <div className="flex items-center justify-between">
                        <h4 className="font-semibold text-md sm:text-lg flex items-center min-w-0 break-words">
-                          {getUrgencyIcon(fu.date)}
+                          {urgencyIcon}
                           {prospectName}
                        </h4>
                        <ColorCodedIndicator colorCode={prospectColorCode} className="shrink-0" />
@@ -95,6 +111,11 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                       <div className="flex items-center">
                         <CalendarClock className="w-4 h-4 mr-1 text-muted-foreground shrink-0" />
                         <span>{isValid(parseISO(fu.date)) ? format(parseISO(fu.date), 'EEE, MMM d') : 'Invalid Date'} at {fu.time}</span>
+                        <span className={cn("ml-2 font-medium text-xs px-1.5 py-0.5 rounded-full", 
+                            statusText === "Overdue" && "bg-destructive/20 text-destructive-foreground",
+                            statusText === "Due Soon" && "bg-accent/20 text-accent-foreground",
+                            statusText === "Today" && "bg-primary/20 text-primary-foreground"
+                        )}>{statusText}</span>
                       </div>
                       <div className="flex items-center">
                         {getMethodIcon(fu.method)}
@@ -122,9 +143,8 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                          View Prospect <ArrowRight className="ml-2 h-4 w-4" />
                        </Link>
                      </Button>
-                     {/* Placeholder for complete action - this would need state management or server action */}
                      <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50 w-full sm:w-auto justify-start sm:justify-center" 
-                        onClick={() => alert(`Mark follow-up ${fu.id} for ${prospectName} as done (not implemented).`)}>
+                        onClick={() => alert(`Mark follow-up ${fu.id} for ${prospectName} as done (not implemented). Needs server action.`)}>
                        <CheckCircle className="mr-2 h-4 w-4" /> Mark Done
                      </Button>
                   </div>
