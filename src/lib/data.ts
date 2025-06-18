@@ -145,8 +145,7 @@ export async function getProspects(): Promise<Prospect[]> {
   const q = query(
     collection(db, PROSPECTS_COLLECTION), 
     where('userId', '==', userId), 
-    where('isArchived', '==', false), // Fetch only non-archived (isArchived is explicitly false)
-    orderBy('createdAt', 'desc')
+    where('isArchived', '==', false) // Removed orderBy('createdAt', 'desc')
   );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
@@ -192,7 +191,7 @@ export async function getProspects(): Promise<Prospect[]> {
       lastContactedDate: lastContactedDateValue,
       nextFollowUpDate: nextFollowUpDateValue,
       interactionHistory: [], 
-      isArchived: data.isArchived || false, // Default to false if undefined for safety, though query should handle it
+      isArchived: data.isArchived || false,
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
       avatarUrl: data.avatarUrl,
@@ -231,7 +230,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawLCD) {
         if (typeof rawLCD === 'string') {
             lastContactedDateValue = rawLCD;
-        } else if (rawLCD && typeof (rawLCD as { toDate?: () => Date }).toDate === 'function') { // Duck typing
+        } else if (rawLCD && typeof (rawLCD as { toDate?: () => Date }).toDate === 'function') { // Duck typing for Timestamp
             lastContactedDateValue = (rawLCD as Timestamp).toDate().toISOString();
         }
     }
@@ -241,7 +240,7 @@ export async function getProspectById(id: string): Promise<Prospect | undefined>
     if (rawNFD) {
         if (typeof rawNFD === 'string') {
             nextFollowUpDateValue = rawNFD.split('T')[0];
-        } else if (rawNFD && typeof (rawNFD as { toDate?: () => Date }).toDate === 'function') { // Duck typing
+        } else if (rawNFD && typeof (rawNFD as { toDate?: () => Date }).toDate === 'function') { // Duck typing for Timestamp
              nextFollowUpDateValue = (rawNFD as Timestamp).toDate().toISOString().split('T')[0];
         }
     }
@@ -295,7 +294,7 @@ export async function addProspect(prospectData: Omit<Prospect, 'id' | 'createdAt
     followUpStageNumber: prospectData.followUpStageNumber,
     userId,
     ...aiDetails, 
-    isArchived: false, // Initialize as not archived
+    isArchived: false, 
     createdAt: now,
     updatedAt: now,
   };
@@ -364,30 +363,26 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
     }
   }
   
-  // Determine final stage and archived status
-  const finalStage = updates.currentFunnelStage || originalProspectData.currentFunnelStage;
+  const finalStage = updatesForFirestore.currentFunnelStage || originalProspectData.currentFunnelStage;
 
   if (finalStage === "Close") {
     updatesForFirestore.isArchived = true;
-    updatesForFirestore.nextFollowUpDate = deleteField(); // Clear next follow-up when closed
+    updatesForFirestore.nextFollowUpDate = deleteField();
   } else {
-    // If not closing, explicitly mark as not archived.
-    // This handles cases where stage changes to active, or an active prospect is updated.
     updatesForFirestore.isArchived = false;
   }
 
-  // AI Details Update (if necessary conditions are met)
   if ( (updates.followUpStageNumber && updates.followUpStageNumber !== originalProspectData.followUpStageNumber) ||
        (updates.name && updates.name !== originalProspectData.name) ||
-       (originalProspectData.colorCode === '#CCCCCC' && (!updatesForFirestore.colorCode || updatesForFirestore.colorCode === '#CCCCCC')) || // Regenerate if current is default and not being set to non-default
-       (updatesForFirestore.isArchived === false && originalProspectData.isArchived !== false) // Regenerate if unarchiving
+       (originalProspectData.colorCode === '#CCCCCC' && (!updatesForFirestore.colorCode || updatesForFirestore.colorCode === '#CCCCCC')) ||
+       (updatesForFirestore.isArchived === false && originalProspectData.isArchived !== false) 
      ) {
     const aiDetails = await ensureProspectDetails({
       id: id,
-      name: updates.name || originalProspectData.name,
-      followUpStageNumber: updates.followUpStageNumber || originalProspectData.followUpStageNumber,
+      name: updatesForFirestore.name || originalProspectData.name,
+      followUpStageNumber: updatesForFirestore.followUpStageNumber || originalProspectData.followUpStageNumber,
       currentFunnelStage: finalStage, 
-      initialData: updates.initialData || originalProspectData.initialData,
+      initialData: updatesForFirestore.initialData || originalProspectData.initialData,
       colorCode: updatesForFirestore.colorCode || originalProspectData.colorCode, 
       colorCodeReasoning: updatesForFirestore.colorCodeReasoning || originalProspectData.colorCodeReasoning, 
       userId,
@@ -398,12 +393,11 @@ export async function updateProspect(id: string, updates: Partial<Omit<Prospect,
 
   await updateDoc(prospectDocRef, updatesForFirestore);
   
-  // Recalculate nextFollowUpDate if not archived or if it was just unarchived
   const finalProspectDataAfterUpdate = (await getDoc(prospectDocRef)).data() as ProspectDocData;
   let updatedNextFollowUpDate;
 
   if (finalProspectDataAfterUpdate.isArchived === true) {
-    updatedNextFollowUpDate = undefined; // Explicitly undefined for archived
+    updatedNextFollowUpDate = undefined; 
   } else {
     updatedNextFollowUpDate = await calculateNextFollowUpDate(id, userId);
   }
@@ -504,7 +498,6 @@ export async function getUpcomingFollowUps(days: number = 7): Promise<FollowUp[]
     } as FollowUp;
   });
 
-  // Filter out follow-ups for archived prospects
   const activeFollowUps = [];
   for (const fu of followUps) {
     const prospectDoc = await getDoc(doc(db, PROSPECTS_COLLECTION, fu.prospectId));
