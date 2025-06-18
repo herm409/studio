@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { colorCodeProspect as genAIColorCodeProspect } from '@/ai/flows/color-code-prospect';
 import type { User } from 'firebase/auth';
-import { isPast, isToday, parseISO } from 'date-fns'; // Added for hasActiveAlerts
+import { isPast, isToday, parseISO, format } from 'date-fns';
 
 const USERS_COLLECTION = 'users';
 const PROSPECTS_COLLECTION = 'prospects';
@@ -51,6 +51,15 @@ interface ProspectDocData {
   updatedAt: Timestamp;
   avatarUrl?: string;
 }
+
+export interface AlertNotificationItem {
+  followUp: FollowUp;
+  prospectId: string;
+  prospectName: string;
+  prospectAvatarUrl?: string;
+  prospectColorCode?: string;
+}
+
 
 export async function ensureUserProfileDocument(user: User): Promise<void> {
   const userDocRef = doc(db, USERS_COLLECTION, user.uid);
@@ -146,6 +155,7 @@ export async function getProspects(): Promise<Prospect[]> {
   const q = query(
     collection(db, PROSPECTS_COLLECTION), 
     where('userId', '==', userId)
+    // Removed orderBy('createdAt', 'desc') to avoid needing a composite index immediately
   );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
@@ -153,6 +163,7 @@ export async function getProspects(): Promise<Prospect[]> {
   for (const prospectDoc of querySnapshot.docs) {
     const data = prospectDoc.data() as ProspectDocData;
 
+    // Client-side filter for archived prospects
     if (data.isArchived === true) { 
       continue;
     }
@@ -530,7 +541,12 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
 
   const now = Timestamp.now();
   const newFollowUpData: {[key: string]: any} = {
-    ...followUpData,
+    prospectId: followUpData.prospectId,
+    date: followUpData.date,
+    time: followUpData.time,
+    method: followUpData.method,
+    notes: followUpData.notes,
+    status: followUpData.status,
     userId,
     createdAt: now, 
     updatedAt: now, 
@@ -630,7 +646,7 @@ export async function updateFollowUp(followUpId: string, updates: Partial<Omit<F
             
             await updateDoc(prospectDocToUpdateRef, prospectUpdatesForCounter);
         }
-        // Log interaction for completed follow-up
+        
         let interactionType: Interaction['type'] = 'Note';
         switch (updatedFollowUpForGamification.method) {
           case 'Call':
@@ -881,7 +897,7 @@ export async function hasActiveAlerts(): Promise<boolean> {
     collection(db, FOLLOW_UPS_COLLECTION),
     where('userId', '==', userId),
     where('status', '==', 'Pending'),
-    where('date', '<=', todayISO) // Check for dates on or before today
+    where('date', '<=', todayISO) 
   );
 
   const followUpsSnapshot = await getDocs(followUpsQuery);
@@ -892,16 +908,79 @@ export async function hasActiveAlerts(): Promise<boolean> {
 
   for (const fuDoc of followUpsSnapshot.docs) {
     const fuData = fuDoc.data();
-    const followUpDate = parseISO(fuData.date as string); // Ensure date is parsed correctly
+    const followUpDate = parseISO(fuData.date as string); 
 
-    // Check if it's overdue (past and not today) or due today
     if (isPast(followUpDate) || isToday(followUpDate)) {
       const prospectDocRef = doc(db, PROSPECTS_COLLECTION, fuData.prospectId as string);
       const prospectSnap = await getDoc(prospectDocRef);
       if (prospectSnap.exists() && prospectSnap.data()?.isArchived !== true) {
-        return true; // Found an active alert
+        return true; 
       }
     }
   }
-  return false; // No active alerts found for non-archived prospects
+  return false; 
 }
+
+export async function getActiveAlertFollowUps(): Promise<AlertNotificationItem[]> {
+  const userId = getCurrentUserId();
+  if (!userId) return [];
+
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+
+  const followUpsQuery = query(
+    collection(db, FOLLOW_UPS_COLLECTION),
+    where('userId', '==', userId),
+    where('status', '==', 'Pending'),
+    where('date', '<=', todayISO),
+    orderBy('date', 'asc'), 
+    orderBy('time', 'asc')
+  );
+
+  const followUpsSnapshot = await getDocs(followUpsQuery);
+  if (followUpsSnapshot.empty) {
+    return [];
+  }
+
+  const alertItems: AlertNotificationItem[] = [];
+
+  for (const fuDoc of followUpsSnapshot.docs) {
+    const followUpData = fuDoc.data();
+    const followUpDate = parseISO(followUpData.date as string);
+
+    if (isPast(followUpDate) || isToday(followUpDate)) {
+      const prospectDocRef = doc(db, PROSPECTS_COLLECTION, followUpData.prospectId as string);
+      const prospectSnap = await getDoc(prospectDocRef);
+
+      if (prospectSnap.exists() && prospectSnap.data()?.isArchived !== true) {
+        const prospectData = prospectSnap.data() as ProspectDocData;
+        const createdAtTimestamp = followUpData.createdAt as Timestamp | undefined;
+        const updatedAtTimestamp = followUpData.updatedAt as Timestamp | undefined;
+
+        alertItems.push({
+          followUp: {
+            id: fuDoc.id,
+            userId: followUpData.userId,
+            prospectId: followUpData.prospectId,
+            date: followUpData.date,
+            time: followUpData.time,
+            method: followUpData.method,
+            notes: followUpData.notes,
+            status: followUpData.status,
+            aiSuggestedTone: followUpData.aiSuggestedTone,
+            aiSuggestedContent: followUpData.aiSuggestedContent,
+            aiSuggestedTool: followUpData.aiSuggestedTool,
+            createdAt: createdAtTimestamp?.toDate().toISOString() ?? new Date(0).toISOString(),
+            updatedAt: updatedAtTimestamp?.toDate().toISOString(),
+          } as FollowUp,
+          prospectId: prospectSnap.id,
+          prospectName: prospectData.name,
+          prospectAvatarUrl: prospectData.avatarUrl,
+          prospectColorCode: prospectData.colorCode,
+        });
+      }
+    }
+  }
+  return alertItems;
+}
+
