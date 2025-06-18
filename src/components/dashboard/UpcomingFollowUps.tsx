@@ -4,18 +4,25 @@ import type { FollowUp, Prospect } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, Mail, Phone, AlertTriangle, CheckCircle, User, ArrowRight, MessageSquareText, Clock } from 'lucide-react';
+import { CalendarClock, Mail, Phone, AlertTriangle, CheckCircle, User, ArrowRight, MessageSquareText, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO, isToday, isTomorrow, isPast, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ColorCodedIndicator } from '@/components/shared/ColorCodedIndicator';
+import { updateFollowUp as serverUpdateFollowUp } from '@/lib/data'; // Renamed import
+import { useToast } from '@/hooks/use-toast';
+import React, { useState } from 'react';
 
 interface UpcomingFollowUpsProps {
   followUps: FollowUp[];
   prospects: Prospect[];
+  onFollowUpUpdated: () => void; // Callback to refresh dashboard data
 }
 
-export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsProps) {
+export function UpcomingFollowUps({ followUps, prospects, onFollowUpUpdated }: UpcomingFollowUpsProps) {
+  const { toast } = useToast();
+  const [updatingFollowUpId, setUpdatingFollowUpId] = useState<string | null>(null);
+
   if (followUps.length === 0) {
     return (
       <Card className="shadow-lg">
@@ -40,6 +47,26 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
       case 'Call': return <Phone className="w-4 h-4 text-muted-foreground shrink-0" />;
       case 'In-Person': return <User className="w-4 h-4 text-muted-foreground shrink-0" />;
       default: return <CalendarClock className="w-4 h-4 text-muted-foreground shrink-0" />;
+    }
+  };
+
+  const handleMarkDone = async (followUpId: string) => {
+    setUpdatingFollowUpId(followUpId);
+    try {
+      await serverUpdateFollowUp(followUpId, { status: 'Completed' });
+      toast({
+        title: "Success",
+        description: "Follow-up marked as completed.",
+      });
+      onFollowUpUpdated(); // Refresh dashboard data
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark follow-up as done.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingFollowUpId(null);
     }
   };
 
@@ -151,10 +178,18 @@ export function UpcomingFollowUps({ followUps, prospects }: UpcomingFollowUpsPro
                          View Prospect <ArrowRight className="ml-2 h-4 w-4" />
                        </Link>
                      </Button>
-                     <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50 w-full sm:w-auto justify-start sm:justify-center" 
-                        onClick={() => alert(`Mark follow-up ${fu.id} for ${prospectName} as done (not implemented). Needs server action.`)}>
-                       <CheckCircle className="mr-2 h-4 w-4" /> Mark Done
-                     </Button>
+                     {fu.status === 'Pending' && (
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 w-full sm:w-auto justify-start sm:justify-center" 
+                            onClick={() => handleMarkDone(fu.id)}
+                            disabled={updatingFollowUpId === fu.id}
+                        >
+                        {updatingFollowUpId === fu.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                         Mark Done
+                        </Button>
+                     )}
                   </div>
                 </div>
               </Card>

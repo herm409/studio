@@ -24,31 +24,32 @@ export default function DashboardPage() {
   const [accountabilityData, setAccountabilityData] = useState<AccountabilitySummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      if (!user) {
-        setIsLoading(false); // Stop loading if no user, though layout should prevent this page
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const [fuData, pData, gsData, adData] = await Promise.all([
-          getUpcomingFollowUps(7),
-          getProspects(),
-          getGamificationStats(),
-          getAccountabilitySummaryData()
-        ]);
-        setUpcomingFollowUpsData(fuData);
-        setProspectsData(pData);
-        setGamificationStats(gsData);
-        setAccountabilityData(adData);
-      } catch (error) {
-        console.error("Failed to load dashboard data:", error);
-        // Optionally, show a toast notification
-      } finally {
-        setIsLoading(false);
-      }
+  async function loadDashboardData() {
+    if (!user) {
+      setIsLoading(false); // Stop loading if no user, though layout should prevent this page
+      return;
     }
+    setIsLoading(true);
+    try {
+      const [fuData, pData, gsData, adData] = await Promise.all([
+        getUpcomingFollowUps(7),
+        getProspects(),
+        getGamificationStats(),
+        getAccountabilitySummaryData()
+      ]);
+      setUpcomingFollowUpsData(fuData);
+      setProspectsData(pData);
+      setGamificationStats(gsData);
+      setAccountabilityData(adData);
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+      // Optionally, show a toast notification
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
     loadDashboardData();
   }, [user]); // Reload data if user changes
 
@@ -77,7 +78,11 @@ Any tips for improvement?`;
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        <UpcomingFollowUps followUps={upcomingFollowUpsData} prospects={prospectsData} />
+        <UpcomingFollowUps 
+          followUps={upcomingFollowUpsData} 
+          prospects={prospectsData}
+          onFollowUpUpdated={loadDashboardData} // Pass the refresh function
+        />
       </div>
       <div className="lg:col-span-1 space-y-6">
         <Card className="shadow-lg">
