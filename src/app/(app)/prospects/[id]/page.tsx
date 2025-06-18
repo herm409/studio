@@ -210,7 +210,7 @@ export default function ProspectDetailPage() {
   const generateScheduleSuggestion = async () => {
     if (!prospect) return;
     setIsScheduleLoading(true);
-    setAiScheduleSuggestion(null); // Clear previous suggestions
+    setAiScheduleSuggestion(null); 
     try {
       const today = new Date();
       const currentDateFormatted = format(today, "yyyy-MM-dd");
@@ -240,8 +240,8 @@ export default function ProspectDetailPage() {
         try {
           await serverAddFollowUp({
             prospectId: prospect.id,
-            method: suggestedFu.method as 'Email' | 'Call' | 'In-Person', // Type assertion based on Zod schema
-            date: suggestedFu.date, // Already YYYY-MM-DD string
+            method: suggestedFu.method as 'Email' | 'Call' | 'In-Person', 
+            date: suggestedFu.date, 
             time: suggestedFu.time,
             notes: suggestedFu.notes,
             status: 'Pending',
@@ -262,8 +262,8 @@ export default function ProspectDetailPage() {
          toast({ title: "Error", description: "Could not apply any of the AI suggested follow-ups.", variant: "destructive" });
       }
       
-      fetchProspectData(); // Refresh data to show new follow-ups
-      setAiScheduleSuggestion(null); // Clear the suggestion from UI
+      fetchProspectData(); 
+      setAiScheduleSuggestion(null); 
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to apply AI schedule.", variant: "destructive" });
     } finally {
@@ -314,7 +314,7 @@ export default function ProspectDetailPage() {
           isLoading={isToneLoading}
           suggestionResult={aiToneSuggestion && (
             <>
-              <p><strong>Tone:</strong> <Badge variant="outline">{aiToneSuggestion.tone}</Badge></p>
+              <div><strong>Tone:</strong> <Badge variant="outline">{aiToneSuggestion.tone}</Badge></div>
               <p><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></p>
               {aiToneSuggestion.suggestedTool && <p><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</p>}
             </>
@@ -476,7 +476,7 @@ export default function ProspectDetailPage() {
                    {aiToneSuggestion && (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
                         <p className="font-semibold text-blue-700">AI Suggestion:</p>
-                        <p><strong>Tone:</strong> {aiToneSuggestion.tone}</p>
+                        <div><strong>Tone:</strong> {aiToneSuggestion.tone}</div>
                         <p className="mt-1"><strong>Content:</strong> <em className="whitespace-pre-wrap">{aiToneSuggestion.content}</em></p>
                         {aiToneSuggestion.suggestedTool && <p className="mt-1"><strong>Tool:</strong> {aiToneSuggestion.suggestedTool}</p>}
                     </div>
