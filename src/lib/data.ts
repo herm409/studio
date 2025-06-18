@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { colorCodeProspect as genAIColorCodeProspect } from '@/ai/flows/color-code-prospect';
 import type { User } from 'firebase/auth';
+import { isPast, isToday, parseISO } from 'date-fns'; // Added for hasActiveAlerts
 
 const USERS_COLLECTION = 'users';
 const PROSPECTS_COLLECTION = 'prospects';
@@ -145,7 +146,6 @@ export async function getProspects(): Promise<Prospect[]> {
   const q = query(
     collection(db, PROSPECTS_COLLECTION), 
     where('userId', '==', userId)
-    // removed: orderBy('createdAt', 'desc') // Removed for simpler query while index builds
   );
   const querySnapshot = await getDocs(q);
   const prospectsList: Prospect[] = [];
@@ -529,14 +529,13 @@ export async function addFollowUp(followUpData: Omit<FollowUp, 'id' | 'createdAt
 
 
   const now = Timestamp.now();
-  const newFollowUpData: {[key: string]: any} = { // Explicitly type to allow dynamic keys
+  const newFollowUpData: {[key: string]: any} = {
     ...followUpData,
     userId,
     createdAt: now, 
     updatedAt: now, 
   };
 
-  // Conditionally add AI suggestion fields
   if (followUpData.aiSuggestedTone) {
     newFollowUpData.aiSuggestedTone = followUpData.aiSuggestedTone;
   }
@@ -709,7 +708,7 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
 
 
   const interactionTimestamp = Timestamp.fromDate(new Date(interactionData.date));
-  const dataToSave: { [key: string]: any } = { // Explicitly type to allow dynamic keys
+  const dataToSave: { [key: string]: any } = { 
     prospectId: interactionData.prospectId,
     userId,
     date: interactionTimestamp,
@@ -731,9 +730,8 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
   return {
     ...interactionData,
     id: docRef.id,
-    userId, // Add userId back for the returned object type
+    userId, 
     date: interactionTimestamp.toDate().toISOString(),
-    // Conditionally include outcome in returned object only if it was saved
     ...(dataToSave.outcome && { outcome: dataToSave.outcome }),
   } as Interaction;
 }
@@ -872,3 +870,38 @@ export async function getAccountabilitySummaryData(): Promise<AccountabilitySumm
   };
 }
 
+export async function hasActiveAlerts(): Promise<boolean> {
+  const userId = getCurrentUserId();
+  if (!userId) return false;
+
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+
+  const followUpsQuery = query(
+    collection(db, FOLLOW_UPS_COLLECTION),
+    where('userId', '==', userId),
+    where('status', '==', 'Pending'),
+    where('date', '<=', todayISO) // Check for dates on or before today
+  );
+
+  const followUpsSnapshot = await getDocs(followUpsQuery);
+
+  if (followUpsSnapshot.empty) {
+    return false;
+  }
+
+  for (const fuDoc of followUpsSnapshot.docs) {
+    const fuData = fuDoc.data();
+    const followUpDate = parseISO(fuData.date as string); // Ensure date is parsed correctly
+
+    // Check if it's overdue (past and not today) or due today
+    if (isPast(followUpDate) || isToday(followUpDate)) {
+      const prospectDocRef = doc(db, PROSPECTS_COLLECTION, fuData.prospectId as string);
+      const prospectSnap = await getDoc(prospectDocRef);
+      if (prospectSnap.exists() && prospectSnap.data()?.isArchived !== true) {
+        return true; // Found an active alert
+      }
+    }
+  }
+  return false; // No active alerts found for non-archived prospects
+}

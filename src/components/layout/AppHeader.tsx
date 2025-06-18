@@ -8,6 +8,8 @@ import { Bell, UserCircle, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { hasActiveAlerts } from "@/lib/data";
 
 interface AppHeaderProps {
   title: string;
@@ -16,6 +18,21 @@ interface AppHeaderProps {
 export function AppHeader({ title }: AppHeaderProps) {
   const { user, signOut, loading } = useAuth();
   const router = useRouter();
+  const [showAlertIndicator, setShowAlertIndicator] = useState(false);
+
+  useEffect(() => {
+    const checkAlerts = async () => {
+      if (user) {
+        const activeAlerts = await hasActiveAlerts();
+        setShowAlertIndicator(activeAlerts);
+      } else {
+        setShowAlertIndicator(false);
+      }
+    };
+    checkAlerts();
+    // Optionally, set up an interval to re-check alerts periodically if needed, or re-check on certain actions.
+    // For now, it checks on user change or mount.
+  }, [user]);
 
   const handleLogout = async () => {
     await signOut();
@@ -29,8 +46,11 @@ export function AppHeader({ title }: AppHeaderProps) {
       </div>
       <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
       <div className="ml-auto flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="rounded-full">
+        <Button variant="ghost" size="icon" className="rounded-full relative">
           <Bell className="h-5 w-5" />
+          {showAlertIndicator && (
+            <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-background" />
+          )}
           <span className="sr-only">Notifications</span>
         </Button>
         <DropdownMenu>
