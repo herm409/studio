@@ -4,6 +4,10 @@ import { googleAI } from '@genkit-ai/googleai';
 
 console.log('[Genkit] Attempting to initialize Genkit...');
 
+// Log details about the GOOGLE_API_KEY environment variable
+const apiKeyFromEnv = process.env.GOOGLE_API_KEY;
+console.log(`[Genkit] Checking GOOGLE_API_KEY. Type: ${typeof apiKeyFromEnv}, Value (first 5 chars if exists, or 'EMPTY_STRING' if empty): ${apiKeyFromEnv === "" ? "EMPTY_STRING" : (apiKeyFromEnv ? apiKeyFromEnv.substring(0, Math.min(5, apiKeyFromEnv.length)) : 'NOT_SET')}`);
+
 const apiKey = process.env.GOOGLE_API_KEY;
 // Define the specific placeholder strings to check against.
 const specificPlaceholderKey = "!!! REPLACE_THIS_WITH_YOUR_ACTUAL_GOOGLE_AI_API_KEY !!!";

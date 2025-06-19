@@ -7,4 +7,4 @@ runConfig:
   maxInstances: 1
   env:
     - variable: GOOGLE_API_KEY
-      value: "!!! REPLACE_THIS_WITH_YOUR_ACTUAL_GOOGLE_AI_API_KEY !!!" # IMPORTANT: Replace this with your actual Google AI API key
+      value: "AIzaSyA2u8lCfw6e3dYFu5GD3seY-xcu7rZCZBs" # IMPORTANT: Replace this with your actual Google AI API key
