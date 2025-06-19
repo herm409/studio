@@ -1,8 +1,8 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore"; // Changed type import
+import { getStorage, FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,19 +13,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Log Firebase configuration for debugging (excluding sensitive parts if necessary)
 console.log('[Firebase] Attempting to initialize Firebase with config:');
 console.log(`[Firebase] Project ID: ${firebaseConfig.projectId}`);
 console.log(`[Firebase] Auth Domain: ${firebaseConfig.authDomain}`);
 console.log(`[Firebase] Storage Bucket: ${firebaseConfig.storageBucket}`);
+
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   console.error('[Firebase] CRITICAL ERROR: Firebase API Key or Project ID is missing in the environment configuration. Firebase will not initialize correctly.');
+  // Optionally, throw an error to prevent the app from starting in a misconfigured state.
+  // throw new Error('[Firebase] FATAL: Firebase configuration (API Key or Project ID) is missing.');
 }
 
 let app: FirebaseApp;
-let authInstance: import("firebase/auth").Auth;
-let dbInstance: import("firebase/firestore").FirebaseFirestore;
-let storageInstance: import("firebase/storage").FirebaseStorage;
+let authInstance: Auth;
+let dbInstance: Firestore; // Corrected type
+let storageInstance: FirebaseStorage;
 
 try {
   if (!getApps().length) {
@@ -43,20 +45,12 @@ try {
   storageInstance = getStorage(app);
   console.log('[Firebase] Firebase Storage initialized.');
 
-} catch (error) {
-  console.error('[Firebase] CRITICAL ERROR: Failed to initialize Firebase services. This is likely the cause of server startup failure.');
+} catch (error: any) {
+  console.error('[Firebase] CRITICAL ERROR: Failed to initialize Firebase services.');
   console.error(error);
-  // Depending on the severity, you might want to rethrow or handle differently
-  // For now, we'll let the app try to continue, but services will be broken.
-  // This helps isolate if Firebase init is THE blocker for server start.
-  // @ts-ignore
-  app = null; 
-  // @ts-ignore
-  authInstance = null;
-  // @ts-ignore
-  dbInstance = null;
-  // @ts-ignore
-  storageInstance = null;
+  // Re-throw the error or handle as appropriate for your app's startup.
+  // For now, re-throwing will make sure the server fails loudly if Firebase can't init.
+  throw new Error(`[Firebase] FATAL: Firebase initialization failed. Original error: ${error.message}`);
 }
 
 export { app, authInstance as auth, dbInstance as db, storageInstance as storage };

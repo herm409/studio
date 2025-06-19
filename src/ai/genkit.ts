@@ -5,7 +5,9 @@ import { googleAI } from '@genkit-ai/googleai';
 console.log('[Genkit] Attempting to initialize Genkit...');
 
 const apiKey = process.env.GOOGLE_API_KEY;
-const placeholderKey = "!!! REPLACE_THIS_WITH_YOUR_ACTUAL_GOOGLE_AI_API_KEY !!!";
+// Define the specific placeholder strings to check against.
+const specificPlaceholderKey = "!!! REPLACE_THIS_WITH_YOUR_ACTUAL_GOOGLE_AI_API_KEY !!!";
+const oldPlaceholderKey = "AIzaSyCMNAhRSkrFohaunN3itamXlZ7IafIUcfM"; // As previously used in apphosting.yaml
 
 if (!apiKey) {
   console.error(
@@ -20,14 +22,14 @@ if (!apiKey) {
     'Cannot initialize AI plugin. ' +
     'Please set this in apphosting.yaml for Firebase App Hosting.'
   );
-} else if (apiKey === placeholderKey) {
+} else if (apiKey === specificPlaceholderKey || apiKey === oldPlaceholderKey) {
   console.error(
-    '[Genkit] CRITICAL ERROR: The GOOGLE_API_KEY environment variable is set to the placeholder value. ' +
-    'You MUST replace "' + placeholderKey + '" with your actual Google AI API key in your apphosting.yaml file.'
+    '[Genkit] CRITICAL ERROR: The GOOGLE_API_KEY environment variable is set to a placeholder value ("' + apiKey + '"). ' +
+    'You MUST replace it with your actual Google AI API key in your apphosting.yaml file.'
   );
   throw new Error(
-    '[Genkit] FATAL: GOOGLE_API_KEY is still the placeholder value. ' +
-    'Please replace it with your actual key in apphosting.yaml.'
+    '[Genkit] FATAL: GOOGLE_API_KEY is still a placeholder value. ' +
+    'Please replace it with your actual key in apphosting.yaml for Firebase App Hosting.'
   );
 } else {
   console.log('[Genkit] GOOGLE_API_KEY environment variable is present (value starts with: ' + apiKey.substring(0,4) + '...). The googleAI plugin will now attempt to use it.');
