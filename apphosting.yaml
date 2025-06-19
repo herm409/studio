@@ -1,14 +1,16 @@
-# ============================================================
-# FORCED UPDATE ATTEMPT - 2025-06-19T14:30:01Z
-# PLEASE COMMIT THIS FILE IF IT APPEARS AS CHANGED.
-# THIS IS TO ENSURE THE GOOGLE_API_KEY IS DEPLOYED.
-# ============================================================
-# Settings to manage and configure a Firebase App Hosting backend.
-# https://firebase.google.com/docs/app-hosting/configure
-
+# ==========================================================================
+# URGENT: DIAGNOSTIC UPDATE ATTEMPT - 2025-06-19T14:30:01Z
+# THIS FILE CONTENT IS INTENTIONALLY AND SIGNIFICANTLY ALTERED
+# TO FORCE GIT CHANGE DETECTION IN FIREBASE STUDIO.
+#
+# PLEASE VERIFY THIS ENTIRE COMMENT BLOCK AND THE GOOGLE_API_KEY BELOW
+# ARE VISIBLE IN YOUR EDITOR *AND* THAT THIS FILE APPEARS AS MODIFIED
+# IN YOUR SOURCE CONTROL PANEL *BEFORE* ATTEMPTING TO COMMIT.
+#
+# IF THIS FILE DOES NOT APPEAR AS MODIFIED AFTER THIS UPDATE,
+# THE ISSUE LIES WITH FIREBASE STUDIO'S CHANGE DETECTION MECHANISM.
+# ==========================================================================
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
   maxInstances: 1
   env:
     - variable: GOOGLE_API_KEY
