@@ -4,17 +4,33 @@ import { googleAI } from '@genkit-ai/googleai';
 
 console.log('[Genkit] Attempting to initialize Genkit...');
 
-if (!process.env.GOOGLE_API_KEY) {
+const apiKey = process.env.GOOGLE_API_KEY;
+const placeholderKey = "!!! REPLACE_THIS_WITH_YOUR_ACTUAL_GOOGLE_AI_API_KEY !!!";
+
+if (!apiKey) {
   console.error(
     '[Genkit] CRITICAL ERROR: The GOOGLE_API_KEY environment variable is not set. ' +
-    'Genkit AI features will not work and this is likely the cause of server startup failure. ' +
-    'Please set this variable in your Firebase App Hosting environment configuration (apphosting.yaml).'
+    'Genkit AI features will not work. ' +
+    'For Firebase App Hosting, ensure this variable is set in your apphosting.yaml file.'
   );
   // Throw an error to prevent the app from starting if the key is definitely missing.
   // This will make the build fail or runtime fail early, which is better than `ai` being null later.
-  throw new Error("[Genkit] FATAL: GOOGLE_API_KEY is not set in the environment. Cannot initialize AI plugin.");
+  throw new Error(
+    '[Genkit] FATAL: GOOGLE_API_KEY is not set in the environment. ' +
+    'Cannot initialize AI plugin. ' +
+    'Please set this in apphosting.yaml for Firebase App Hosting.'
+  );
+} else if (apiKey === placeholderKey) {
+  console.error(
+    '[Genkit] CRITICAL ERROR: The GOOGLE_API_KEY environment variable is set to the placeholder value. ' +
+    'You MUST replace "' + placeholderKey + '" with your actual Google AI API key in your apphosting.yaml file.'
+  );
+  throw new Error(
+    '[Genkit] FATAL: GOOGLE_API_KEY is still the placeholder value. ' +
+    'Please replace it with your actual key in apphosting.yaml.'
+  );
 } else {
-  console.log('[Genkit] GOOGLE_API_KEY environment variable is present (length: ' + process.env.GOOGLE_API_KEY.length + '). The googleAI plugin will now attempt to use it.');
+  console.log('[Genkit] GOOGLE_API_KEY environment variable is present (value starts with: ' + apiKey.substring(0,4) + '...). The googleAI plugin will now attempt to use it.');
 }
 
 let aiInstance;
