@@ -9,16 +9,14 @@ const apiKey = process.env.GOOGLE_API_KEY;
 const specificPlaceholderKey = "!!! REPLACE_THIS_WITH_YOUR_ACTUAL_GOOGLE_AI_API_KEY !!!";
 const oldPlaceholderKey = "AIzaSyCMNAhRSkrFohaunN3itamXlZ7IafIUcfM"; // As previously used in apphosting.yaml
 
-if (!apiKey) {
+if (!apiKey || apiKey.trim() === "") {
   console.error(
-    '[Genkit] CRITICAL ERROR: The GOOGLE_API_KEY environment variable is not set. ' +
+    '[Genkit] CRITICAL ERROR: The GOOGLE_API_KEY environment variable is not set or is empty. ' +
     'Genkit AI features will not work. ' +
     'For Firebase App Hosting, ensure this variable is set in your apphosting.yaml file.'
   );
-  // Throw an error to prevent the app from starting if the key is definitely missing.
-  // This will make the build fail or runtime fail early, which is better than `ai` being null later.
   throw new Error(
-    '[Genkit] FATAL: GOOGLE_API_KEY is not set in the environment. ' +
+    '[Genkit] FATAL: GOOGLE_API_KEY is not set or is empty in the environment. ' +
     'Cannot initialize AI plugin. ' +
     'Please set this in apphosting.yaml for Firebase App Hosting.'
   );
@@ -32,7 +30,10 @@ if (!apiKey) {
     'Please replace it with your actual key in apphosting.yaml for Firebase App Hosting.'
   );
 } else {
-  console.log('[Genkit] GOOGLE_API_KEY environment variable is present (value starts with: ' + apiKey.substring(0,4) + '...). The googleAI plugin will now attempt to use it.');
+  // Log details about the key that is present (partially masked for security)
+  const maskedKeyStart = apiKey.substring(0, Math.min(4, apiKey.length));
+  const maskedKeyEnd = apiKey.length > 4 ? apiKey.substring(apiKey.length - 4) : "";
+  console.log(`[Genkit] GOOGLE_API_KEY is present. Length: ${apiKey.length}. Starts with: ${maskedKeyStart}. Ends with: ${maskedKeyEnd}. The googleAI plugin will now attempt to use it.`);
 }
 
 let aiInstance;
@@ -44,8 +45,6 @@ try {
     plugins: [
       googleAI(), // This can throw if the API key is invalid or service is unavailable
     ],
-    // The 'model' option at the top level of genkit config is not standard for genkit v1.x.
-    // Model selection should be done per API call (e.g., in ai.generate or ai.definePrompt).
   });
   console.log('[Genkit] Genkit instance created successfully.');
 } catch (error) {
