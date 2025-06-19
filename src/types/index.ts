@@ -42,7 +42,7 @@ export interface Prospect {
   lastContactedDate?: string; // ISO string
   nextFollowUpDate?: string; // ISO string "YYYY-MM-DD"
   followUpStageNumber: number; // 1-12 for color coding
-  interactionHistory: Interaction[]; 
+  interactionHistory: Interaction[];
   isArchived?: boolean; // Added for archiving closed prospects
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
@@ -57,6 +57,9 @@ export interface GamificationStats {
   totalOnTimeFollowUps: number;
   totalMissedFollowUps: number;
   lastFollowUpActivityDate: string | null; // YYYY-MM-DD, to help with streak logic
+  totalProspectsAdded: number; // New: Total prospects ever added
+  powerHoursCompleted: number; // New: Count of "Power Hour" achievements
+  lastPowerHourDate: string | null; // New: YYYY-MM-DD of last power hour
 }
 
 export interface AccountabilitySummaryData {
@@ -65,3 +68,4 @@ export interface AccountabilitySummaryData {
   interactionsLoggedLast14Days: number;
   currentFollowUpStreak: number;
 }
+

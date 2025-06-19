@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Award, CalendarCheck, CheckCircle, Repeat, Star, Target, Trophy, Zap, Users } from "lucide-react";
 import type { GamificationStats } from '@/types';
-import { getGamificationStats } from '@/lib/data'; 
+import { getGamificationStats } from '@/lib/data';
 import { useAuth } from '@/context/AuthContext';
 
 const DAILY_PROSPECT_GOAL = 2; // Updated from 5 to 2
@@ -49,7 +49,7 @@ export default function GamificationPage() {
       </div>
     );
   }
-  
+
   if (!stats) {
      return (
       <div className="flex justify-center items-center h-64">
@@ -136,11 +136,11 @@ export default function GamificationPage() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[
-              { title: "First Prospect", icon: Star, achieved: stats.totalOnTimeFollowUps > 0 || stats.totalMissedFollowUps > 0 || stats.dailyProspectsAdded > 0 }, // Simplified condition for demo
+              { title: "First Prospect", icon: Star, achieved: stats.totalProspectsAdded > 0 },
               { title: "5 Day Streak", icon: Zap, achieved: stats.followUpStreak >= 5 },
               { title: "Perfect Day", icon: CheckCircle, achieved: stats.dailyProspectsAdded >= DAILY_PROSPECT_GOAL },
-              { title: "10 Prospects Added", icon: Users, achieved: false }, // Placeholder, would need total prospect count
-              { title: "Power Hour", icon: Zap, achieved: false },
+              { title: "10 Prospects Added", icon: Users, achieved: stats.totalProspectsAdded >= 10 },
+              { title: "Power Hour", icon: Zap, achieved: stats.powerHoursCompleted > 0 },
               { title: "Consistent Closer", icon: Trophy, achieved: stats.followUpStreak >= 25 },
             ].map(ach => (
               <div key={ach.title} className={`p-4 rounded-lg border-2 flex flex-col items-center text-center transition-all duration-300 ${ach.achieved ? 'border-yellow-500 bg-yellow-500/10 shadow-md' : 'border-gray-300 bg-gray-100 opacity-60'}`}>
@@ -155,3 +155,4 @@ export default function GamificationPage() {
     </div>
   );
 }
+
