@@ -1,5 +1,6 @@
 
-console.log('[Genkit] src/ai/genkit.ts - SCRIPT EXECUTION STARTED'); // VERY FIRST LINE
+console.log('<<<<< EXECUTION OF src/ai/genkit.ts STARTED - CHECK THIS LOG IN CLOUD RUN LOGS >>>>>'); // VERY FIRST LINE
+console.log(`[Genkit] src/ai/genkit.ts - Timestamp: ${new Date().toISOString()}`);
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
@@ -53,7 +54,7 @@ try {
   console.log('[Genkit] Attempting to call genkit({plugins: [googleAI()]}) with the validated API key.');
   aiInstance = genkit({
     plugins: [
-      googleAI(), 
+      googleAI(),
     ],
   });
   console.log('[Genkit] Genkit instance created successfully.');
