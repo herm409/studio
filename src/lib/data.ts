@@ -753,21 +753,36 @@ export async function addInteraction(prospectId: string, interactionData: Omit<I
 
 export async function getGamificationStats(): Promise<GamificationStats> {
   const userId = getCurrentUserId();
-  if (!userId) return { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0, powerHoursCompleted: 0, lastPowerHourDate: null };
+  if (!userId) return { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0 };
 
   const statsDocRef = doc(db, GAMIFICATION_COLLECTION, userId);
   const docSnap = await getDoc(statsDocRef);
 
-  const defaultStats: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0, powerHoursCompleted: 0, lastPowerHourDate: null };
+  const defaultStats: GamificationStats = { 
+    dailyProspectsAdded: 0, 
+    followUpStreak: 0, 
+    totalOnTimeFollowUps: 0, 
+    totalMissedFollowUps: 0, 
+    lastProspectAddedDate: null, 
+    lastFollowUpActivityDate: null, 
+    totalProspectsAdded: 0 
+  };
 
   if (docSnap.exists()) {
-    const data = docSnap.data() as Partial<GamificationStats>; // Data from DB might be partial
-    let statsToReturn: GamificationStats = { ...defaultStats, ...data }; // Merge with defaults
+    const data = docSnap.data() as Partial<GamificationStats>; 
+    let statsToReturn: GamificationStats = { ...defaultStats, ...data }; 
 
     const todayStr = new Date().toISOString().split('T')[0];
     if (statsToReturn.lastProspectAddedDate !== todayStr) {
       statsToReturn.dailyProspectsAdded = 0;
     }
+    // Ensure core numeric stats are numbers
+    statsToReturn.dailyProspectsAdded = Number(statsToReturn.dailyProspectsAdded || 0);
+    statsToReturn.followUpStreak = Number(statsToReturn.followUpStreak || 0);
+    statsToReturn.totalOnTimeFollowUps = Number(statsToReturn.totalOnTimeFollowUps || 0);
+    statsToReturn.totalMissedFollowUps = Number(statsToReturn.totalMissedFollowUps || 0);
+    statsToReturn.totalProspectsAdded = Number(statsToReturn.totalProspectsAdded || 0);
+
     return statsToReturn;
   } else {
     await setDoc(statsDocRef, defaultStats);
@@ -782,7 +797,7 @@ async function updateGamificationOnAddProspect() {
   const statsDocRef = doc(db, GAMIFICATION_COLLECTION, userId);
   await runTransaction(db, async (transaction) => {
     const statsSnap = await transaction.get(statsDocRef);
-    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0, powerHoursCompleted: 0, lastPowerHourDate: null };
+    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0 };
     let currentStats: GamificationStats;
 
     if (!statsSnap.exists()) {
@@ -795,9 +810,9 @@ async function updateGamificationOnAddProspect() {
     if (currentStats.lastProspectAddedDate !== todayStr) {
       currentStats.dailyProspectsAdded = 0;
     }
-    currentStats.dailyProspectsAdded += 1;
+    currentStats.dailyProspectsAdded = (Number(currentStats.dailyProspectsAdded || 0)) + 1;
     currentStats.lastProspectAddedDate = todayStr;
-    currentStats.totalProspectsAdded = (currentStats.totalProspectsAdded || 0) + 1; // Increment total
+    currentStats.totalProspectsAdded = (Number(currentStats.totalProspectsAdded || 0)) + 1; 
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
@@ -809,7 +824,7 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
   const statsDocRef = doc(db, GAMIFICATION_COLLECTION, userId);
   await runTransaction(db, async (transaction) => {
     const statsSnap = await transaction.get(statsDocRef);
-    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0, powerHoursCompleted: 0, lastPowerHourDate: null };
+    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0 };
     let currentStats: GamificationStats;
 
     if (!statsSnap.exists()) {
@@ -822,48 +837,19 @@ async function updateGamificationOnFollowUpComplete(originalFollowUp: FollowUp, 
     const todayStr = completedDate.toISOString().split('T')[0];
 
     if (updatedFollowUp.status === 'Completed') {
-      currentStats.totalOnTimeFollowUps = (currentStats.totalOnTimeFollowUps || 0) + 1;
+      currentStats.totalOnTimeFollowUps = (Number(currentStats.totalOnTimeFollowUps || 0)) + 1;
       if (currentStats.lastFollowUpActivityDate !== todayStr) {
-         currentStats.followUpStreak = (currentStats.followUpStreak || 0) + 1;
+         currentStats.followUpStreak = (Number(currentStats.followUpStreak || 0)) + 1;
       }
       currentStats.lastFollowUpActivityDate = todayStr;
     } else if (updatedFollowUp.status === 'Missed') {
-      currentStats.totalMissedFollowUps = (currentStats.totalMissedFollowUps || 0) + 1;
+      currentStats.totalMissedFollowUps = (Number(currentStats.totalMissedFollowUps || 0)) + 1;
       currentStats.followUpStreak = 0;
       currentStats.lastFollowUpActivityDate = todayStr;
     }
     transaction.set(statsDocRef, currentStats, { merge: true });
   });
 }
-
-export async function logPowerHourCompletion(): Promise<void> {
-  const userId = getCurrentUserId();
-  if (!userId) throw new Error("User not authenticated");
-
-  const statsDocRef = doc(db, GAMIFICATION_COLLECTION, userId);
-  await runTransaction(db, async (transaction) => {
-    const statsSnap = await transaction.get(statsDocRef);
-    const defaultStatsBase: GamificationStats = { dailyProspectsAdded: 0, followUpStreak: 0, totalOnTimeFollowUps: 0, totalMissedFollowUps: 0, lastProspectAddedDate: null, lastFollowUpActivityDate: null, totalProspectsAdded: 0, powerHoursCompleted: 0, lastPowerHourDate: null };
-    let currentStats: GamificationStats;
-
-    if (!statsSnap.exists()) {
-      currentStats = defaultStatsBase;
-    } else {
-      currentStats = { ...defaultStatsBase, ...statsSnap.data() as Partial<GamificationStats> };
-    }
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (currentStats.lastPowerHourDate !== todayStr) {
-      currentStats.powerHoursCompleted = (currentStats.powerHoursCompleted || 0) + 1;
-      currentStats.lastPowerHourDate = todayStr;
-      transaction.set(statsDocRef, currentStats, { merge: true });
-    } else {
-      console.log("Power hour already logged for today.");
-      // Optionally, you could throw an error or return a status if you want the UI to know
-    }
-  });
-}
-
 
 export async function getAccountabilitySummaryData(): Promise<AccountabilitySummaryData> {
   const userId = getCurrentUserId();

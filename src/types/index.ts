@@ -57,9 +57,7 @@ export interface GamificationStats {
   totalOnTimeFollowUps: number;
   totalMissedFollowUps: number;
   lastFollowUpActivityDate: string | null; // YYYY-MM-DD, to help with streak logic
-  totalProspectsAdded: number; // New: Total prospects ever added
-  powerHoursCompleted: number; // New: Count of "Power Hour" achievements
-  lastPowerHourDate: string | null; // New: YYYY-MM-DD of last power hour
+  totalProspectsAdded: number; 
 }
 
 export interface AccountabilitySummaryData {
@@ -68,4 +66,5 @@ export interface AccountabilitySummaryData {
   interactionsLoggedLast14Days: number;
   currentFollowUpStreak: number;
 }
+
 

@@ -7,8 +7,9 @@ import { Award, CalendarCheck, CheckCircle, Repeat, Star, Target, Trophy, Zap, U
 import type { GamificationStats } from '@/types';
 import { getGamificationStats } from '@/lib/data';
 import { useAuth } from '@/context/AuthContext';
+import { cn } from "@/lib/utils";
 
-const DAILY_PROSPECT_GOAL = 2; // Updated from 5 to 2
+const DAILY_PROSPECT_GOAL = 2;
 const STREAK_MILESTONES = [5, 10, 25, 50, 100];
 
 export default function GamificationPage() {
@@ -61,8 +62,19 @@ export default function GamificationPage() {
 
 
   const dailyProspectProgress = Math.min((stats.dailyProspectsAdded / DAILY_PROSPECT_GOAL) * 100, 100);
+  const isDailyGoalAchieved = stats.dailyProspectsAdded >= DAILY_PROSPECT_GOAL;
   const nextStreakMilestone = STREAK_MILESTONES.find(m => m > stats.followUpStreak) || STREAK_MILESTONES[STREAK_MILESTONES.length - 1];
   const streakProgress = Math.min((stats.followUpStreak / nextStreakMilestone) * 100, 100);
+
+  const achievements = [
+      { title: "First Prospect", icon: Star, achieved: stats.totalProspectsAdded > 0, description: "Add your very first prospect." },
+      { title: "5 Day Streak", icon: Zap, achieved: stats.followUpStreak >= 5, description: "Complete follow-ups for 5 days in a row." },
+      { title: "Perfect Day", icon: CheckCircle, achieved: isDailyGoalAchieved, description: `Add ${DAILY_PROSPECT_GOAL} prospects in a single day.` },
+      { title: "10 Prospects Added", icon: Users, achieved: stats.totalProspectsAdded >= 10, description: "Add a total of 10 prospects." },
+      { title: "Consistent Connector", icon: Award, achieved: stats.totalOnTimeFollowUps >= 25, description: "Complete 25 on-time follow-ups." },
+      { title: "Follow-Up Champion", icon: Trophy, achieved: stats.followUpStreak >= 25, description: "Maintain a 25-day follow-up streak." },
+    ];
+
 
   return (
     <div className="space-y-8">
@@ -73,7 +85,7 @@ export default function GamificationPage() {
       </header>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+        <Card className={cn("shadow-lg hover:shadow-xl transition-shadow", isDailyGoalAchieved && "border-2 border-yellow-500 bg-yellow-500/10")}>
           <CardHeader>
             <CardTitle className="flex items-center text-xl font-headline">
               <Target className="mr-2 h-6 w-6 text-red-500" /> Daily Prospect Goal
@@ -85,7 +97,7 @@ export default function GamificationPage() {
             <p className="text-2xl font-bold text-primary text-center">
               {stats.dailyProspectsAdded} / {DAILY_PROSPECT_GOAL}
             </p>
-             {stats.dailyProspectsAdded >= DAILY_PROSPECT_GOAL && (
+             {isDailyGoalAchieved && (
               <p className="text-sm text-green-600 text-center mt-1 flex items-center justify-center"><CheckCircle className="w-4 h-4 mr-1"/>Goal Achieved Today!</p>
             )}
           </CardContent>
@@ -135,18 +147,12 @@ export default function GamificationPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[
-              { title: "First Prospect", icon: Star, achieved: stats.totalProspectsAdded > 0 },
-              { title: "5 Day Streak", icon: Zap, achieved: stats.followUpStreak >= 5 },
-              { title: "Perfect Day", icon: CheckCircle, achieved: stats.dailyProspectsAdded >= DAILY_PROSPECT_GOAL },
-              { title: "10 Prospects Added", icon: Users, achieved: stats.totalProspectsAdded >= 10 },
-              { title: "Power Hour", icon: Zap, achieved: stats.powerHoursCompleted > 0 },
-              { title: "Consistent Closer", icon: Trophy, achieved: stats.followUpStreak >= 25 },
-            ].map(ach => (
-              <div key={ach.title} className={`p-4 rounded-lg border-2 flex flex-col items-center text-center transition-all duration-300 ${ach.achieved ? 'border-yellow-500 bg-yellow-500/10 shadow-md' : 'border-gray-300 bg-gray-100 opacity-60'}`}>
-                <ach.icon className={`h-10 w-10 mb-2 ${ach.achieved ? 'text-yellow-600' : 'text-gray-400'}`} />
-                <h3 className={`font-semibold ${ach.achieved ? 'text-yellow-700' : 'text-gray-500'}`}>{ach.title}</h3>
-                {ach.achieved && <p className="text-xs text-yellow-600">Unlocked!</p>}
+            {achievements.map(ach => (
+              <div key={ach.title} className={cn("p-4 rounded-lg border-2 flex flex-col items-center text-center transition-all duration-300 h-full", ach.achieved ? 'border-yellow-500 bg-yellow-500/10 shadow-md' : 'border-gray-300 bg-gray-100 opacity-60')}>
+                <ach.icon className={cn("h-10 w-10 mb-2", ach.achieved ? 'text-yellow-600' : 'text-gray-400')} />
+                <h3 className={cn("font-semibold", ach.achieved ? 'text-yellow-700' : 'text-gray-500')}>{ach.title}</h3>
+                <p className="text-xs text-muted-foreground flex-grow">{ach.description}</p>
+                {ach.achieved && <p className="text-xs text-yellow-600 mt-1 font-bold">Unlocked!</p>}
               </div>
             ))}
           </div>
@@ -155,4 +161,3 @@ export default function GamificationPage() {
     </div>
   );
 }
-
